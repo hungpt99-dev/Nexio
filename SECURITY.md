@@ -162,3 +162,24 @@
 
 Report via GitHub private security advisory. Do not open a public GitHub Issue.
 Do not include keys, tokens, or personal data in reports.
+
+## Web search (untrusted content, SSRF, privacy)
+
+- Web search is off by default and optional. With nothing configured the
+  tools are hidden from the model and every run is told `not_configured`.
+- Results are UNTRUSTED data: each page/snippet ships in delimited blocks
+  (`<web_page>` / `<web_result>` with the source URL). Instructions inside
+  have no authority — they cannot trigger tools, approvals, memory writes
+  or subtasks. A write after web content forces an approval card marked
+  `Requested after reading <domain>`.
+- SSRF: localhost, link-local, private and metadata IPs are blocked (DNS
+  resolved first and re-checked after each redirect, max 5); only
+  http/https, no embedded credentials, no `file:`/`data:`/`ftp:` schemes.
+  No cookies or local credentials leave the machine; fixed `Nexio/1.0`
+  user agent. Per-run caps (8 searches, 6 fetches) and a 5-minute
+  query/URL-only cache.
+- Privacy: queries/URLs must not carry file contents, paths, secrets,
+  memory or attachment text without explicit user confirmation (inline
+  one-line confirm after a local read). Tracking params are stripped;
+  the UI fetches no favicons/images. Queries are logged only when the
+  user enables **Save search queries**. See `docs/web-search.md`.

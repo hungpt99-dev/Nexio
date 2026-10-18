@@ -25,6 +25,10 @@ export const IpcChannels = {
   isEncryptionAvailable: 'nexio:is-encryption-available',
   secretsStatus: 'nexio:secrets-status',
   testConnectivity: 'nexio:test-connectivity',
+  webTest: 'nexio:web-test',
+  webSetKey: 'nexio:web-set-key',
+  webSearch: 'nexio:web-search',
+  webFetch: 'nexio:web-fetch',
   listModels: 'nexio:list-models',
   resetProviderFixes: 'nexio:reset-provider-fixes',
   listConversations: 'nexio:list-conversations',
@@ -61,6 +65,7 @@ export const IpcChannels = {
   pinToggle: 'nexio:pin-toggle',
   undo: 'nexio:undo',
   reveal: 'nexio:reveal',
+  openExternal: 'nexio:open-external',
   runs: 'nexio:runs',
   memory: 'nexio:memory',
   memoryEvent: 'nexio:memory-event',
@@ -175,6 +180,11 @@ export interface IpcChannelMap {
   pinToggle: { args: []; result: { pinned: boolean } };
   undo: { args: [runId: string]; result: { runId: string } };
   reveal: { args: [dir: string]; result: boolean };
+  openExternal: { args: [url: string]; result: boolean };
+  webTest: { args: []; result: { ok: boolean; message: string; ms?: number; count?: number } };
+  webSetKey: { args: [provider: string, key: string]; result: boolean };
+  webSearch: { args: [query: string]; result: { results: Array<{ title: string; url: string; snippet: string; source: string; date?: string }>; provider: string; ms: number; reformulated?: string } };
+  webFetch: { args: [url: string]; result: { title: string; url: string; text: string; contentType: string; truncated: boolean } };
   runs: { args: []; result: Array<{ runId: string; kind: 'agent' | 'workflow'; prompt: string; outcome: string; ts: number; status: 'done' | 'error' | 'stopped'; undoable: boolean }> };
   attachPick: { args: []; result: Array<{ path: string; name: string; size: number; mime: string; previewDataUrl?: string; verdict: string; reason?: string }> };
   attachProcess: { args: [input: { runId: string; name: string; dataBase64: string }]; result: { id: string; name: string; mime: string; size: number; kind: string; width?: number; height?: number; previewDataUrl?: string; sha256: string; error?: string } };

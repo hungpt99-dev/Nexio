@@ -255,6 +255,9 @@ describe('ask injection + secrets', () => {
   afterEach(() => { globalThis.fetch = realFetch; });
 
   it('a malicious file cannot trigger a write or a web request', async () => {
+    // Configured provider: the web tool is offered, so the read-then-send
+    // guard (not the not-configured filter) is what stops the call.
+    process.env.NEXIO_SEARCH_KEY = 'k';
     let webHit = 0;
     globalThis.fetch = (async () => { webHit++; return new Response('{}', { status: 200 }); }) as unknown as typeof fetch;
     const dir = tmpRoot();
@@ -267,6 +270,7 @@ describe('ask injection + secrets', () => {
     await runAgent('read then act', {
       provider: 'openai', apiKey: 'k', model: 'm', cwd: dir, history: [],
       allowedRoots: [dir], mode: 'ask',
+      webSettings: { provider: 'openai', model: 'm', theme: 'light', hotkey: '', mode: 'chat', webProvider: 'brave', webAllowAsk: true } as never,
       tools: [read, fakeTool({
         name: 'web_search', risk: 'read', askSafe: true,
         inputSchema: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] },
@@ -286,6 +290,7 @@ describe('ask injection + secrets', () => {
     expect(outs[2]).toMatch(/explicit go-ahead|Send text from/i);
     expect(webHit).toBe(0);
     expect(fs.existsSync(path.join(dir, 'o.txt'))).toBe(false);
+    delete process.env.NEXIO_SEARCH_KEY;
   });
   it('secret values in read output are redacted before reaching the model', async () => {
     const dir = tmpRoot();

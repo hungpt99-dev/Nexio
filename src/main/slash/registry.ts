@@ -23,6 +23,7 @@ const BUILTINS: SlashEntry[] = [
   { trigger: '/queue', label: 'Queue task', description: 'Add to the task queue (usage: /queue <text>)', source: 'builtin', action: 'queue', scope: 'agent' },
   { trigger: '/tasks', label: 'Tasks', description: 'Open the Tasks view', source: 'builtin', action: 'tasks', scope: 'all' },
   { trigger: '/pin', label: 'Pin', description: 'Keep the window open (Alt+P)', source: 'builtin', action: 'pin', scope: 'all' },
+  { trigger: '/search', label: 'Search web', description: 'Search the web (usage: /search <query>)', source: 'builtin', action: 'search', scope: 'all' },
   { trigger: '/cancel', label: 'Cancel task', description: 'Cancel a task (usage: /cancel <n>)', source: 'builtin', action: 'cancel', scope: 'all' },
   { trigger: '/clear-queue', label: 'Clear queue', description: 'Clear the waiting queue (asks first)', source: 'builtin', action: 'clear-queue', scope: 'all' },
 ];

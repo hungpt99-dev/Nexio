@@ -75,7 +75,7 @@ Ask answers questions read-only (8 tool calls / 60 s cap, no approval cards ever
 Write and destructive tools park in `waiting_approval` with the exact action shown — hooks can only block or force approval, never grant it. Reversible ops (`fs_move`, `fs_copy`, new-file `fs_write`, `clipboard_write`) journal per run and undo in reverse order with precondition checks. Deletes use the Recycle Bin (restore manually); shell and MCP tools are never undoable.
 
 ### Slash commands and workflows
-18 builtins plus prompt templates (`/translate /rewrite /summarize /explain /analyze /reply`), two-step workflows (`/email-reply`, `/requirement-review`), and commands contributed by skills and MCP servers. Palette ranks exact > prefix > substring > fuzzy; unknown triggers suggest the top 3.
+19 builtins (`/search` included) plus prompt templates (`/translate /rewrite /summarize /explain /analyze /reply`), two-step workflows (`/email-reply`, `/requirement-review`), and commands contributed by skills and MCP servers. Palette ranks exact > prefix > substring > fuzzy; unknown triggers suggest the top 3.
 
 ### Extensions: skills, MCP, hooks
 Agent-Skills-compatible skills (progressive loading, own-folder reads), MCP servers over stdio plus Streamable HTTP/SSE (bridged as `mcp__server__tool`), event hooks (block or force-approval only), and reusable JSON workflows — all installed OFF until reviewed, with tamper re-checks that disable changed extensions.
@@ -105,7 +105,7 @@ Every core action has a key: toggle, mode switch, send, queue, stop, pin, palett
 - Keys live in Electron `safeStorage` (DPAPI on Windows, Keychain on macOS) in a versioned envelope; dev-only `${PROVIDER}_API_KEY` env fallback; unreadable keys ask for re-entry, never crash a run.
 - Memory is off by default, encrypted when a backend exists, ids-only in logs; untrusted content can't write it.
 - Extensions install OFF, re-disable on capability growth or tamper; MCP secrets move to the OS store.
-- No telemetry; network goes only to configured providers. UI in English + Vietnamese, no-restart switch.
+- No telemetry; network goes only to configured providers. Web search is off by default and configurable (Settings > Web search); results are untrusted, SSRF-blocked, and never logged. UI in English + Vietnamese, no-restart switch.
 
 Read [SECURITY.md](SECURITY.md) before connecting providers or enabling extensions.
 

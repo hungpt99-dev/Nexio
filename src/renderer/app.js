@@ -5,6 +5,25 @@ const messagesEl = $('messages'), inputEl = $('input'), paletteEl = $('palette')
 let convId = null, paletteItems = [], paletteActive = 0, assistantDiv = null;
 let mode = 'chat', reqSeq = 0;
 let settingsProvider = 'openai';
+let webProviderSel = 'off';
+function paintWebProv() {
+  const seg = $('set-webprov-seg');
+  if (seg) seg.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.webprov === webProviderSel));
+  const fk = $('fld-webkey');
+  if (fk) fk.classList.toggle('hidden', webProviderSel !== 'brave');
+  const fu = $('fld-weburl');
+  if (fu) fu.classList.toggle('hidden', webProviderSel !== 'searxng');
+  const priv = $('web-privacy');
+  if (priv) {
+    const label = webProviderSel === 'brave' ? 'Brave Search' : webProviderSel === 'searxng' ? 'your SearXNG instance' : 'no provider (web search off)';
+    priv.textContent = `Your search query is sent to ${label}. Nothing else leaves this computer.`;
+  }
+}
+(function () {
+  const seg = $('set-webprov-seg');
+  if (!seg) return;
+  seg.querySelectorAll('button').forEach((b) => b.addEventListener('click', (e) => { e.preventDefault(); webProviderSel = b.dataset.webprov; paintWebProv(); }));
+})();
 // True once the user explicitly picks a pill this session (wins over intent routing).
 let modeExplicitSession = false;
 function selectMode(m) { modeExplicitSession = true; setMode(m); }
@@ -738,11 +757,61 @@ async function sendInner(submitOpts) {
         return void send(trigger === '/spawn' ? { taskAction: 'spawn' } : { queued: true });
       }
       if (trigger === '/cancel') return void runCancelCommand(rest.join(' '));
+      if (trigger === '/search') {
+        const q = rest.join(' ').trim();
+        if (!q) { addMsg('assistant', 'Usage: /search <query> — searches the web. Configure it first in Settings > Web search.'); showView('run'); return; }
+        try {
+          const r = await window.nexio.webSearch(q);
+          const host = addMsg('assistant', '');
+          host.innerHTML = '';
+          const title = document.createElement('div');
+          title.innerHTML = `<strong>Results for &ldquo;${esc(q)}&rdquo;</strong> <span class="muted">${esc(String(r.ms || 0))} ms via ${esc(r.provider || 'web')}</span>`;
+          host.appendChild(title);
+          if (r.reformulated) {
+            const rf = document.createElement('div');
+            rf.className = 'muted';
+            rf.textContent = `No results for the first wording — retried as "${r.reformulated}".`;
+            host.appendChild(rf);
+          }
+          const list = document.createElement('div');
+          list.className = 'web-results';
+          (r.results || []).forEach((it, i) => {
+            const row = document.createElement('div');
+            row.className = 'web-result';
+            const a = document.createElement('a');
+            a.href = '#';
+            a.textContent = `[${i + 1}] ${it.title || it.url}`;
+            a.onclick = (e) => { e.preventDefault(); if (window.nexio.openExternal) window.nexio.openExternal(it.url); };
+            const meta = document.createElement('div');
+            meta.className = 'muted';
+            meta.textContent = it.source || it.url;
+            const sn = document.createElement('div');
+            sn.textContent = it.snippet || '';
+            row.appendChild(a); row.appendChild(meta); row.appendChild(sn);
+            list.appendChild(row);
+          });
+          host.appendChild(list);
+        } catch (e) {
+          const host = addMsg('assistant', errText(e));
+          if (/not configured|NOT_CONFIGURED|KEY_UNREADABLE/i.test(errText(e))) {
+            const row = document.createElement('div');
+            row.className = 'web-offrow';
+            row.textContent = 'Web search is off. Set it up in Settings. ';
+            const b = document.createElement('button');
+            b.type = 'button'; b.className = 'btn'; b.textContent = 'Open Settings';
+            b.onclick = () => togglePanel('settings');
+            row.appendChild(b);
+            host.appendChild(row);
+          }
+        }
+        showView('run');
+        return;
+      }
       if (trigger === '/clear-queue') return void runClearQueueCommand();
       if (trigger === '/new') return void newChat();
       if (trigger === '/clear') { messagesEl.innerHTML = ''; assistantDiv = null; currentTurn = null; const st0 = $('agent-steps'); if (st0) st0.innerHTML = ''; const ch0 = $('run-chips'); if (ch0) ch0.remove(); inputEl.value = ''; drafts[mode] = ''; try { if (typeof clearAttachTray === 'function') clearAttachTray(); } catch {} hideSuggest(); showView('idle'); try { maybeSuggest(); } catch {} syncChrome(); requestResize(); return; }
       if (trigger === '/help') {
-        addMsg('assistant', '**Commands:** /help /new /clear /model /history /settings /log /extensions /memory /remember /forget /incognito /spawn /queue /tasks /cancel /clear-queue /pin + prompt templates + workflows + skills.\nType `/` to browse.');
+        addMsg('assistant', '**Commands:** /help /new /clear /model /history /settings /log /extensions /memory /remember /forget /incognito /spawn /queue /tasks /cancel /clear-queue /pin /search + prompt templates + workflows + skills.\nType `/` to browse.');
         showView('run');
         return;
       }
@@ -1117,6 +1186,16 @@ $('btn-settings').onclick = async () => {
   if ($('set-hideblur')) $('set-hideblur').checked = s.hideOnBlur !== false;
   if ($('set-compact')) $('set-compact').checked = s.compactSpacing === true;
   if ($('set-localtext')) $('set-localtext').checked = s.localTextFallback === true;
+  webProviderSel = s.webProvider || 'off';
+  paintWebProv();
+  if ($('set-webmax')) $('set-webmax').value = s.webMaxResults || 5;
+  if ($('set-webregion')) $('set-webregion').value = s.webRegion || '';
+  if ($('set-weblang')) $('set-weblang').value = s.webLanguage || '';
+  if ($('set-weburl')) $('set-weburl').value = s.webUrl || '';
+  if ($('set-webkey')) $('set-webkey').value = '';
+  if ($('set-webask')) $('set-webask').checked = s.webAllowAsk !== false;
+  if ($('set-websave')) $('set-websave').checked = s.webSaveQueries === true;
+  if ($('web-status')) { $('web-status').textContent = ''; $('web-status').classList.remove('ok', 'err'); }
   applySpaceScale(s.compactSpacing === true);
   try { paintTaskSettings(s); } catch (e) {}
   void refreshHotkeyStatus();
@@ -1157,6 +1236,13 @@ $('btn-save-settings').onclick = async () => {
   if ($('set-hideblur')) patch.hideOnBlur = $('set-hideblur').checked;
   if ($('set-compact')) { patch.compactSpacing = $('set-compact').checked; applySpaceScale(patch.compactSpacing); }
   if ($('set-localtext')) patch.localTextFallback = $('set-localtext').checked;
+  patch.webProvider = webProviderSel;
+  if ($('set-weburl') && webProviderSel === 'searxng') patch.webUrl = $('set-weburl').value.trim().replace(/\/+$/, '');
+  if ($('set-webmax')) { const wm = parseInt($('set-webmax').value, 10); if (Number.isFinite(wm)) patch.webMaxResults = Math.min(20, Math.max(1, wm)); }
+  if ($('set-webregion')) patch.webRegion = $('set-webregion').value.trim();
+  if ($('set-weblang')) patch.webLanguage = $('set-weblang').value.trim();
+  if ($('set-webask')) patch.webAllowAsk = $('set-webask').checked;
+  if ($('set-websave')) patch.webSaveQueries = $('set-websave').checked;
   try { readTaskSettings(patch); } catch (e) {}
   const sug = $('set-suggest').value.split('\n').map((x) => x.trim()).filter(Boolean).slice(0, 8);
   if (sug.length) patch.suggestions = sug;
@@ -1168,6 +1254,8 @@ $('btn-save-settings').onclick = async () => {
     paintIncognito();
   } catch { /* badge best-effort */ }
   { const k = $('set-apikey').value.trim(); if (k) await window.nexio.setApiKey(patch.provider, k); }
+  { const wk = $('set-webkey') && $('set-webkey').value.trim(); if (wk && webProviderSel === 'brave' && window.nexio.webSetKey) { try { await window.nexio.webSetKey('brave', wk); } catch (e) { $('settings-status').textContent = 'Web key not saved: ' + errText(e); } } }
+  if ($('set-webkey')) $('set-webkey').value = '';
   $('set-apikey').value = '';
   void paintSecretsNotice();
   currentStopHotkey = $('set-stophotkey').value.trim() || 'Ctrl+Alt+Esc';
@@ -1224,6 +1312,35 @@ function testAction(a) {
   if (a === 'check-base-url') return 'check the base URL';
   return '';
 }
+if ($('btn-test-web')) $('btn-test-web').onclick = async () => {
+  const btn = $('btn-test-web');
+  if (btn.disabled) return;
+  btn.disabled = true;
+  const status = $('web-status');
+  status.textContent = 'Testing…';
+  status.classList.remove('ok', 'err');
+  try {
+    await window.nexio.setSettings({
+      webProvider: webProviderSel,
+      webUrl: ($('set-weburl') && $('set-weburl').value.trim().replace(/\/+$/, '')) || '',
+      webMaxResults: Math.min(20, Math.max(1, parseInt(($('set-webmax') && $('set-webmax').value) || '5', 10) || 5)),
+      webRegion: ($('set-webregion') && $('set-webregion').value.trim()) || '',
+      webLanguage: ($('set-weblang') && $('set-weblang').value.trim()) || '',
+      webAllowAsk: $('set-webask') ? $('set-webask').checked : true,
+    });
+    const wk = $('set-webkey') && $('set-webkey').value.trim();
+    if (wk && webProviderSel === 'brave' && window.nexio.webSetKey) await window.nexio.webSetKey('brave', wk);
+    if ($('set-webkey')) $('set-webkey').value = '';
+    const r = await window.nexio.webTest();
+    status.textContent = r.ok ? r.message : r.message;
+    status.classList.add(r.ok ? 'ok' : 'err');
+  } catch (e) {
+    status.textContent = errText(e);
+    status.classList.add('err');
+  } finally {
+    btn.disabled = false;
+  }
+};
 if ($('btn-reset-fixes')) $('btn-reset-fixes').onclick = async () => {
   try { await window.nexio.resetProviderFixes(); } catch { /* best-effort */ }
   const status = $('settings-status');
@@ -2034,6 +2151,28 @@ function handleAgentEvent(runId, ev) {
     agentScroll();
   } else if (ev.type === 'tool_result') {
     if (memSuppressed.has(ev.id)) { memSuppressed.delete(ev.id); agentScroll(); return; }
+    try {
+      if ((ev.tool === 'web_search' || ev.tool === 'web_fetch') && ev.ok && typeof ev.output === 'string') {
+        if (!st.webSources) st.webSources = [];
+        const seen = new Set(st.webSources.map((x) => x.url));
+        const re = /source="([^"]+)"/g;
+        let m;
+        while ((m = re.exec(ev.output)) && st.webSources.length < 12) {
+          const u = m[1];
+          if (u && u !== 'web_search' && !seen.has(u)) { seen.add(u); st.webSources.push({ url: u, via: ev.tool }); }
+        }
+        // Step row keeps the exact query and gains the result count.
+        try {
+          const row0 = st.rows.get(ev.id);
+          const tx0 = row0 && row0.querySelector('.tx');
+          const sumSpan = tx0 && tx0.querySelectorAll('span')[1];
+          const cnt = (ev.output.match(/\((\d+) result\(s\)\)/) || [])[1];
+          if (row0 && sumSpan && cnt && !/\(\d+ result/.test(sumSpan.textContent || '')) {
+            sumSpan.textContent = `${sumSpan.textContent} (${cnt})`;
+          }
+        } catch { /* label best-effort */ }
+      }
+    } catch { /* sources never break steps */ }
     const row = st.rows.get(ev.id);
     const dur = fmtDur(ev.durationMs);
     // A blocked Ask call shows a failed step with a switch chip, never an approval card.
@@ -2084,6 +2223,39 @@ function handleAgentEvent(runId, ev) {
         };
         tx.appendChild(btn);
       }
+      if (!ev.ok && (ev.tool === 'web_search' || ev.tool === 'web_fetch')) {
+        const out = String(ev.output || '');
+        const code = (out.match(/^([A-Z_]+):/) || [])[1] || '';
+        const reason = out.replace(/^[A-Z_]+:\s*/, '');
+        const fail = document.createElement('div');
+        fail.className = 'web-fail';
+        fail.textContent = `Search failed: ${reason || out}`;
+        tx.appendChild(fail);
+        const acts = document.createElement('div');
+        acts.className = 'web-fail-actions';
+        if (code === 'NOT_CONFIGURED' || code === 'KEY_UNREADABLE') {
+          const b = document.createElement('button');
+          b.type = 'button'; b.className = 'btn'; b.textContent = 'Open Settings';
+          b.onclick = () => togglePanel('settings');
+          acts.appendChild(b);
+        } else if (code === 'RATE_LIMITED' || code === 'TIMEOUT' || code === 'NETWORK' || code === 'PROVIDER_ERROR') {
+          const b = document.createElement('button');
+          b.type = 'button'; b.className = 'btn'; b.textContent = 'Retry';
+          b.onclick = () => { if (lastUserText && typeof inputEl !== 'undefined' && inputEl) { inputEl.value = lastUserText; try { grow(); } catch {} send({}); } };
+          acts.appendChild(b);
+        }
+        if (acts.children.length) tx.appendChild(acts);
+      }
+      if (!ev.ok && ev.tool === 'web_search' && /NOT_CONFIGURED/.test(String(ev.output || '')) && st.answerDiv && st.answerDiv.parentNode && !st.answerDiv.parentNode.querySelector('.web-offrow')) {
+        const off = document.createElement('div');
+        off.className = 'web-offrow';
+        off.textContent = 'Web search is off. Set it up in Settings. ';
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'btn'; b.textContent = 'Open Settings';
+        b.onclick = () => togglePanel('settings');
+        off.appendChild(b);
+        st.answerDiv.after(off);
+      }
     } else {
       addAgentRow('tool', iconFor(ev.ok ? 'ok' : 'fail') +
         `<div class="tx">${esc(ev.output || '')}</div><span class="dur">${esc(dur)}</span>`);
@@ -2117,6 +2289,62 @@ function handleAgentEvent(runId, ev) {
         requestResize();
       }
     } catch {}
+    try {
+      if (st.webSources && st.webSources.length && st.answerDiv && st.answerDiv.parentNode && !st.answerDiv.parentNode.querySelector('.web-sources')) {
+        const box = document.createElement('div');
+        box.className = 'web-sources';
+        const n = st.webSources.length;
+        const toggle = document.createElement('button');
+        toggle.type = 'button';
+        toggle.className = 'switch-do-chip';
+        toggle.setAttribute('aria-expanded', 'false');
+        toggle.textContent = `Sources (${n})`;
+        const list = document.createElement('div');
+        list.className = 'hidden web-sources-list';
+        st.webSources.forEach((it, i) => {
+          let host = it.url;
+          try { host = new URL(it.url).hostname; } catch { /* keep raw */ }
+          const row = document.createElement('div');
+          row.className = 'web-source';
+          const a = document.createElement('a');
+          a.href = '#';
+          a.textContent = `[${i + 1}] ${host}`;
+          a.title = it.url;
+          a.onclick = (e) => { e.preventDefault(); if (window.nexio.openExternal) window.nexio.openExternal(it.url); };
+          const dom = document.createElement('span');
+          dom.className = 'muted';
+          dom.textContent = ` ${host}`;
+          row.appendChild(a); row.appendChild(dom);
+          list.appendChild(row);
+        });
+        toggle.onclick = () => {
+          const open = list.classList.toggle('hidden');
+          toggle.setAttribute('aria-expanded', String(!open));
+        };
+        box.appendChild(toggle);
+        box.appendChild(list);
+        st.answerDiv.after(box);
+        const meta = $('model-name');
+        if (meta && !document.querySelector('.web-used')) {
+          const chip = document.createElement('span');
+          chip.className = 'web-used';
+          chip.textContent = ' · Used web search';
+          meta.after(chip);
+        }
+      }
+    } catch { /* sources row never breaks done */ }
+    try {
+      if (st.answerDiv && /Settings > Web search/.test(st.answerDiv.dataset.raw || '') && st.answerDiv.parentNode && !st.answerDiv.parentNode.querySelector('.web-offrow')) {
+        const off = document.createElement('div');
+        off.className = 'web-offrow';
+        off.textContent = 'Web search is off. Set it up in Settings. ';
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'btn'; b.textContent = 'Open Settings';
+        b.onclick = () => togglePanel('settings');
+        off.appendChild(b);
+        st.answerDiv.after(off);
+      }
+    } catch { /* inline action never breaks done */ }
     renderRunChips(runId);
     setRouteStatus(null);
     syncChrome();

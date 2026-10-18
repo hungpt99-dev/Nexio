@@ -1,4 +1,8 @@
 import type { Tool } from '../types';
+import { WebError } from '../../web/types';
+import { fetchReadable, wrapPage } from '../../web/fetch';
+import { domainOf, stripTrackingParams } from '../../web/ssrf';
+import { getCachedFetch, setCachedFetch } from '../../web/cache';
 
 export const webFetchTool: Tool = {
   name: 'web_fetch',
@@ -7,26 +11,28 @@ export const webFetchTool: Tool = {
     type: 'object',
     properties: {
       url: { type: 'string', description: 'http(s) URL to fetch' },
-      maxBytes: { type: 'number', description: 'Max bytes (default 20000)' },
     },
     required: ['url'],
   },
   risk: 'read',
   askSafe: true,
-  describe: (input) => `Fetch URL ${String(input.url || '')}`,
+  describe: (input) => `Read ${domainOf(String(input.url || ''))}`,
   run: async (input, ctx) => {
-    const url = String(input.url || '');
-    if (!/^https?:\/\//i.test(url)) return { ok: false, output: 'only http/https URLs allowed' };
-    const max = Math.min(Number(input.maxBytes) || 20_000, 200_000);
+    const url = String(input.url || '').trim();
+    if (!url) return { ok: false, output: 'BLOCKED_URL: empty URL' };
     try {
-      const res = await fetch(url, { signal: ctx.signal, redirect: 'follow' });
-      if (!res.ok) return { ok: false, output: `fetch failed: http ${res.status}` };
-      const buf = Buffer.from(await res.arrayBuffer());
-      const text = buf.subarray(0, max).toString('utf8');
-      const note = buf.length > max ? `\n…[truncated ${buf.length - max} bytes]` : '';
-      return { ok: true, output: text + note, source: url, untrusted: true };
+      const hit = getCachedFetch<{ text: string; url: string }>(url);
+      if (hit) {
+        return { ok: true, output: `Read ${domainOf(hit.url)} (cached)\n${wrapPage(hit.url, hit.text)}`, source: hit.url, untrusted: true };
+      }
+      const r = await fetchReadable(url, { signal: ctx.signal });
+      setCachedFetch(r.url, { text: r.text, url: r.url });
+      const note = r.truncated ? '\n…[truncated to 100 KB]' : '';
+      const cleanUrl = stripTrackingParams(r.url);
+      return { ok: true, output: `Read ${domainOf(cleanUrl)}\n${wrapPage(cleanUrl, r.text)}${note}`, source: cleanUrl, untrusted: true };
     } catch (e) {
-      return { ok: false, output: `fetch failed: ${(e as Error).message}` };
+      if (e instanceof WebError) return { ok: false, output: `${e.code}: ${e.message.replace(/^[A-Z_]+: /, '')}` };
+      return { ok: false, output: `NETWORK: ${(e as Error).message}` };
     }
   },
 };

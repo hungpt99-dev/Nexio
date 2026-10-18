@@ -46,8 +46,11 @@ fs_trash` (trash only, never delete). Destructive: `shell_run`.
 
 Every tool carries an explicit `askSafe` flag (default `false`; new tools are
 blocked in Ask until opted in). `askSafe: true` only for the read tools above
-plus `skill_load` (instructions only); `web_search`/`web_fetch` only run in Ask
-when configured. Writes, `app_open` and `shell_run` are `askSafe: false`.
+plus `skill_load` (instructions only); `web_search`/`web_fetch` are offered
+in Ask and Do only when a provider is configured (structured `webSearch`
+state each run: `available | not_configured | disabled_in_mode | error:<code>`,
+see `src/main/web/manager.ts` and `docs/web-search.md`). Writes, `app_open`
+and `shell_run` are `askSafe: false`.
 
 | Tool | Risk | askSafe | Notes |
 |---|---|---|---|

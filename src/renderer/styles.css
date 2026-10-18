@@ -711,3 +711,18 @@ code, pre, .k, .scope-chip, .appr .exact, .appr .tool { direction: ltr; unicode-
 #input.scroll { padding-inline-end: 8px; } /* why: keep text clear of the slim thumb */
 html[dir="rtl"] .bar, html[dir="rtl"] #hints, html[dir="rtl"] #answer-meta { flex-direction: row-reverse; }
 html[dir="rtl"] #palette .item, html[dir="rtl"] .appr .top, html[dir="rtl"] .appr .btns { flex-direction: row-reverse; }
+
+/* --- Web search (same tokens, single panel) --- */
+.muted { color: var(--muted); font-size: 12px; }
+.web-results { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.web-result { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 8px 12px; font-size: 13px; }
+.web-result a { color: var(--text); font-weight: 500; }
+.web-sources { font-size: 13px; color: var(--text-soft); background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 8px 12px; margin: 6px 0; }
+.web-sources-list { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
+.web-source a { color: var(--text); }
+.web-fail { color: var(--danger); font-size: 13px; margin-top: 4px; }
+.web-fail-actions { display: flex; gap: 8px; margin-top: 6px; }
+.web-offrow { font-size: 13px; color: var(--text-soft); background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 8px 12px; margin: 6px 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.web-used { font-size: 12px; color: var(--muted); }
+#web-status.ok { color: var(--accent); }
+#web-status.err { color: var(--danger); }

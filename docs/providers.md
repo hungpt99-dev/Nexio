@@ -130,3 +130,22 @@ aborts at 15 s. Model input suggests names from `listModels`.
    `tests/unit/providers-conformance.test.ts`. The literal-contract test
    enforces that request/response literals stay inside `providers/<id>/`
    (`retry.ts` exempt as generic recovery).
+
+## Web search providers (verified 2026-10-18)
+
+| Provider | Endpoint | Auth | Limits |
+|---|---|---|---|
+| Brave Search | `GET https://api.search.brave.com/res/v1/web/search?q=…&count=…&country=…&search_lang=…&freshness=…` | `X-Subscription-Token: <key>` | count ≤ 20 (Nexio caps at 20, default 5); $5/1k requests, $5 free credit/mo; 50 QPS ([pricing](https://brave.com/search/api/) 2026-10-18) |
+| SearXNG (self-hosted) | `GET {base}/search?q=…&format=json&language=…&time_range=…` | none (your instance) | `format=json` must be enabled or the instance returns 403 ([search API docs](https://docs.searxng.org/dev/search_api.html) 2026-10-18) |
+
+Notes: Brave freshness maps `day/week/month/year` → `pd/pw/pm/month-range`; SearXNG
+`time_range` maps `day` → `day`, `week/month` → `month`, `year` → `year`.
+Provider-native web search of the model API is NOT assumed — none of the
+current model adapters document it, so it is not offered.
+
+## Add a web provider
+
+1. Copy `src/main/web/providers/brave/` shape to `<id>/` (`<id>.ts` exporting
+   a `SearchProvider` + endpoint const).
+2. Register in `src/main/web/providers/index.ts` (`isWebProviderId` +
+   `createSearchProvider`). Adding a provider = one folder + registry line.

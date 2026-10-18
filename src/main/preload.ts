@@ -68,6 +68,10 @@ const api = {
   listModels: (provider: string, baseUrl?: string) =>
     invoke(IpcChannels.listModels, provider, baseUrl),
   resetProviderFixes: () => invoke(IpcChannels.resetProviderFixes),
+  webTest: () => invoke(IpcChannels.webTest),
+  webSetKey: (provider: string, key: string) => invoke(IpcChannels.webSetKey, provider, key),
+  webSearch: (query: string) => invoke(IpcChannels.webSearch, query),
+  webFetch: (url: string) => invoke(IpcChannels.webFetch, url),
   listConversations: () => invoke(IpcChannels.listConversations),
   createConversation: (title?: string) => invoke(IpcChannels.createConversation, title),
   getMessages: (id: string) => invoke(IpcChannels.getMessages, id),
@@ -128,6 +132,7 @@ const api = {
     return () => ipcRenderer.removeListener(IpcChannels.tasksChanged, fn);
   },
   reveal: (dir: string) => invoke(IpcChannels.reveal, dir) as Promise<boolean>,
+  openExternal: (url: string) => invoke(IpcChannels.openExternal, url) as Promise<boolean>,
   runs: () => invoke(IpcChannels.runs),
   onRouteStatus: (cb: (ev: { id: string; status: 'doing' | 'answering' }) => void) => {
     const fn = (_e: unknown, data: { id: string; status: 'doing' | 'answering' }) => cb(data);

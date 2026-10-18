@@ -38,6 +38,15 @@ Settings live in the app SQLite DB (`getSettings`/`updateSettings` in
 | `taskResume` | `'ask'` | Waiting tasks on start: `ask` / `resume` / `discard`. |
 | `taskNotifications` | `true` | Approval + finished-family notifications. |
 | `taskPruneDays` | `30` | Prune terminal tasks/runs older than N days (1–3650). |
+| `webProvider` | `'off'` | Web search provider: `off` \| `brave` \| `searxng` (Settings > Web search). Off = web tools not offered. |
+| `webUrl` | `''` | SearXNG base URL (self-hosted, no key). |
+| `webMaxResults` | `5` | Max results per search (1–20). |
+| `webAllowAsk` | `true` | Allow web search in Ask mode (default ON once configured). |
+| `webRegion` | `''` | Region hint (e.g. `US`) sent to the search provider. |
+| `webLanguage` | `''` | Language hint (e.g. `en`) sent to the search provider. |
+| `webSaveQueries` | `false` | Store search queries in the run log (off = never logged in full). |
+| `webAllowlist` | `[]` | Extra hosts allowed to bypass SSRF protection. |
+| `web:brave` secret | — | Brave key via secrets module (`webSetKey`), never in settings. |
 | `sendTemperature` | `true` | Custom provider only: send `temperature`. Off for strict local servers. |
 | `compatibleImages` | `auto` | Custom provider only: image support `auto` (probe) / `on` / `off`. Off holds images back with the non-vision notice. |
 | `localTextFallback` | `false` | Extract Office/doc text locally when the provider can't read it (chip + sent text labelled "text extracted locally"). Off refuses with an unsupported notice. |

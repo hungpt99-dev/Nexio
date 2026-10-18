@@ -265,13 +265,14 @@ describe('memory view: single-view mount, list/filter/edit/pin/forget, empty sta
 describe('settings: one switch row per boolean, helper notes, chips, footer chip', () => {
   it('every boolean setting renders a visible track (root cause: hidden input, track span missing)', () => {
     const h = html();
-    // all sixteen boolean rows carry the paint span; the native input is always hidden by CSS
+    // all eighteen boolean rows carry the paint span; the native input is always hidden by CSS
     const tracks = h.split('switch-track" aria-hidden').length - 1;
-    expect(tracks).toBe(16);
+    expect(tracks).toBe(18);
     for (const id of ['set-sendtemp', 'set-askread', 'set-reqapprove', 'set-mem', 'set-mem-suggest',
       'set-mem-semantic', 'set-mem-ask', 'set-incognito', 'set-login', 'set-hideblur', 'set-compact',
       'set-localtext',
-      'set-task-subtasks', 'set-task-asksub', 'set-task-confirm', 'set-task-notify']) {
+      'set-task-subtasks', 'set-task-asksub', 'set-task-confirm', 'set-task-notify',
+      'set-webask', 'set-websave']) {
       const at = h.indexOf(`id="${id}"`);
       expect(at).toBeGreaterThan(-1);
       expect(h.slice(at, at + 400)).toContain('switch-track');

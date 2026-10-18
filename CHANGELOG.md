@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+- Web search that is honest about what it can do: `src/main/web/` adds a
+  real, configurable search layer (Brave Search hosted API + self-hosted
+  SearXNG, one folder + registry line per provider) behind Settings > Web
+  search (provider picker, secrets-stored key, Test button with exact
+  errors, region/language hints, max results, Ask-mode toggle, privacy
+  line). Off by default the tools are hidden and every run carries a
+  structured `webSearch` state (`available | not_configured |
+  disabled_in_mode | error:<code>`), so the model says exactly why it
+  cannot search and how to enable it instead of a vague reply. Typed
+  errors (NOT_CONFIGURED … DISABLED) with [Open Settings]/[Retry] actions,
+  one NO_RESULTS reformulation, step rows with the exact query, Sources
+  rows with `[1]` citations, a `Used web search` chip, `/search` in Ask
+  and Do, SSRF/privacy guards, and answers in the language of the latest
+  message. Root cause of the reported bug: `web_search` was always offered
+  but only env-configured (`NEXIO_SEARCH_URL`), so every call failed with a
+  vague string the model turned into "I cannot search". See
+  `docs/web-search.md`.
+
 - Popup visibility is owned by one module with reasons and grace periods:
   blur hides only with the pointer truly outside (150ms recheck, halo,
   show/resize/dialog/task graces); new pin (Alt+P, /pin, tray, footer badge)

@@ -62,6 +62,14 @@ export const DEFAULT_SETTINGS: Settings = {
   taskResume: 'ask',
   taskNotifications: true,
   taskPruneDays: 30,
+  webProvider: 'off',
+  webUrl: '',
+  webMaxResults: 5,
+  webAllowAsk: true,
+  webRegion: '',
+  webLanguage: '',
+  webSaveQueries: false,
+  webAllowlist: [],
 };
 
 export function validateSettings(s: Partial<Settings>): string[] {
@@ -121,6 +129,14 @@ export function validateSettings(s: Partial<Settings>): string[] {
   if (s.taskResume !== undefined && !['ask', 'resume', 'discard'].includes(s.taskResume)) errors.push('taskResume must be ask, resume or discard');
   if (s.taskNotifications !== undefined && typeof s.taskNotifications !== 'boolean') errors.push('taskNotifications must be boolean');
   if (s.taskPruneDays !== undefined && (typeof s.taskPruneDays !== 'number' || s.taskPruneDays < 1 || s.taskPruneDays > 3650)) errors.push('taskPruneDays must be 1..3650');
+  if (s.webProvider !== undefined && !['off', 'brave', 'searxng'].includes(s.webProvider)) errors.push('webProvider must be off, brave or searxng');
+  if (s.webUrl !== undefined && s.webUrl !== '' && (typeof s.webUrl !== 'string' || !URL_RE.test(s.webUrl))) errors.push('webUrl must be a valid http(s) URL');
+  if (s.webMaxResults !== undefined && (typeof s.webMaxResults !== 'number' || s.webMaxResults < 1 || s.webMaxResults > 20)) errors.push('webMaxResults must be 1..20');
+  if (s.webAllowAsk !== undefined && typeof s.webAllowAsk !== 'boolean') errors.push('webAllowAsk must be boolean');
+  if (s.webRegion !== undefined && typeof s.webRegion !== 'string') errors.push('webRegion must be a string');
+  if (s.webLanguage !== undefined && typeof s.webLanguage !== 'string') errors.push('webLanguage must be a string');
+  if (s.webSaveQueries !== undefined && typeof s.webSaveQueries !== 'boolean') errors.push('webSaveQueries must be boolean');
+  if (s.webAllowlist !== undefined && (!Array.isArray(s.webAllowlist) || !s.webAllowlist.every((x) => typeof x === 'string'))) errors.push('webAllowlist must be an array of strings');
   return errors;
 }
 

@@ -144,6 +144,22 @@ export interface Settings {
   taskNotifications?: boolean;
   /** Prune terminal tasks/runs older than N days (default 30). */
   taskPruneDays?: number;
+  /** Web search provider: 'off' (default) | 'brave' (hosted API) | 'searxng' (self-hosted). */
+  webProvider?: 'off' | 'brave' | 'searxng';
+  /** SearXNG base URL (self-hosted option, no third-party key). */
+  webUrl?: string;
+  /** Max web results per search (default 5, max 20). */
+  webMaxResults?: number;
+  /** Allow web search in Ask mode (default true once a provider is configured). */
+  webAllowAsk?: boolean;
+  /** Region hint (e.g. US) sent to the search provider. */
+  webRegion?: string;
+  /** Language hint (e.g. en) sent to the search provider. */
+  webLanguage?: string;
+  /** Store search queries in the run log (default false — never log full queries at info level). */
+  webSaveQueries?: boolean;
+  /** Extra hosts allowed to bypass SSRF protection (user allow-list). */
+  webAllowlist?: string[];
 }
 
 /** Long-term memory kinds (main + renderer safe). */

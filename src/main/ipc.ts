@@ -88,6 +88,11 @@ import { TaskParkedError } from './agent/types';
 import { makeSubtaskTools } from './tasks/subtaskTools';
 import { toAppError, missingKeyError } from './errors/app-error';
 import { requireApiKey, writeSecret, writeSessionSecret, secretsStatus, clearReentry } from './secrets/index';
+import { getWebConfig, runSearch, testWebConfig, webSecretId, type WebRunBudget } from './web/manager';
+import { isWebProviderId } from './web/providers/index';
+import { makeWebFetchTool, makeWebSearchTool } from './web/tools';
+import { fetchReadable } from './web/fetch';
+import { WebError } from './web/types';
 
 const aborters = new Map<string, AbortController>();
 let seq = 0;
@@ -1090,7 +1095,9 @@ async function runSend(
         requireApprovalForWrites: true,
         mode: 'ask',
         askMcpAllow: s.askMcpTools || [],
-        tools: [...ALL_TOOLS, ...memoryTools(d, { maxItems: s.memoryMaxItems ?? 500 }), ...extras.tools],
+        tools: webRunTools(s, d, memoryTools(d, { maxItems: s.memoryMaxItems ?? 500 }), extras.tools).tools,
+        webSettings: s,
+        webDb: d,
         systemExtra: [extras.systemExtra, memExtra].filter(Boolean).join('\n') || undefined,
         hooks: null,
         signal: aborter.signal,
@@ -1228,6 +1235,15 @@ async function runSend(
   throw asError(new Error(`route-error: unexpected mode ${String(effective)}`));
 }
 
+/** Web tools bound to this run's config: configured -> offered; otherwise hidden, never stubbed. */
+function webRunTools(s: Settings, d: DatabaseSync, mem: Tool[], extra: Tool[]): { tools: Tool[]; budget: WebRunBudget } {
+  const budget: WebRunBudget = { searches: 0, fetches: 0 };
+  const base = ALL_TOOLS.filter((t) => t.name !== 'web_search' && t.name !== 'web_fetch');
+  const { config } = getWebConfig(s, d);
+  if (config.provider === 'off' || !isWebProviderId(config.provider) || !config.credential) return { tools: [...base, ...mem, ...extra], budget };
+  return { tools: [...base, makeWebSearchTool(config, budget), makeWebFetchTool(config, budget), ...mem, ...extra], budget };
+}
+
 /** Shared built-in agent execution (Send routing + explicit agentStart). */
 async function runBuiltInAgent(o: {
   sender: Electron.WebContents; d: DatabaseSync; s: Settings; key: string;
@@ -1302,7 +1318,9 @@ async function runBuiltInAgent(o: {
     alwaysAllow: ((s.agentAlwaysAllow || []) as AlwaysRule[]),
     requireApprovalForWrites: s.requireApprovalForWrites !== false,
     limits: { maxToolCalls: s.agentMaxCalls || 25 },
-    tools: [...ALL_TOOLS, ...memoryTools(d, { maxItems: s.memoryMaxItems ?? 500 }), ...subTools, ...extras.tools],
+    tools: webRunTools(s, d, memoryTools(d, { maxItems: s.memoryMaxItems ?? 500 }), [...subTools, ...extras.tools]).tools,
+    webSettings: s,
+    webDb: d,
     systemExtra,
     hooks: ext.hookRunner(cwd, controller.signal),
     signal: controller.signal,
@@ -1450,6 +1468,8 @@ async function runExtWorkflowRun(
             requireApprovalForWrites: s.requireApprovalForWrites !== false,
             limits: { maxToolCalls: s.agentMaxCalls || 25 },
             tools: subTools,
+            webSettings: s,
+            webDb: d,
             systemExtra: extras.systemExtra || undefined,
             hooks: ext.hookRunner(cwd, controller.signal),
             signal: controller.signal,
@@ -1594,6 +1614,62 @@ function registerSettingsIpc(): void {
   typedHandle(IpcChannels.resetProviderFixes, vNone, () => {
     resetParamCache();
     return true;
+  });
+  typedHandle(IpcChannels.webSetKey, vStr2, (_e, provider: string, key: string) => {
+    if (!key) throw new Error('Empty web key');
+    if (provider !== 'brave') throw new Error(`Unknown web provider: ${String(provider)}`);
+    const id = webSecretId(provider);
+    try {
+      writeSecret(db(), id, key);
+    } catch (e) {
+      if (toAppError(e).code === 'SECRET_UNAVAILABLE') {
+        writeSessionSecret(id, key);
+        clearReentry(id);
+        return true;
+      }
+      throw e;
+    }
+    clearReentry(id);
+    return true;
+  });
+  typedHandle(IpcChannels.webTest, vNone, async () => {
+    const d = db();
+    const st = getSettings(d);
+    return testWebConfig(st, d);
+  });
+  typedHandle(IpcChannels.webSearch, vStr1, async (_e, query: string) => {
+    const d = db();
+    const st = getSettings(d);
+    const q = String(query || '').trim();
+    if (!q) throw new Error('Empty query');
+    const budget: WebRunBudget = { searches: 0, fetches: 0 };
+    const logQuery = st.webSaveQueries === true ? (qq: string) => {
+      try { appendLog(createRunLog().path, { runId: 'web-search', query: qq.slice(0, 200) }); } catch { /* logging never breaks search */ }
+    } : undefined;
+    try {
+      const r = await runSearch(st, d, q, { count: st.webMaxResults || 5 }, budget, logQuery);
+      return { results: r.results, provider: r.provider, ms: r.ms, reformulated: r.reformulated };
+    } catch (e) {
+      if (e instanceof WebError) {
+        throw Object.assign(new Error(`${e.code}: ${e.message.replace(/^[A-Z_]+: /, '')}`), { code: e.code, action: e.action });
+      }
+      throw e;
+    }
+  });
+  typedHandle(IpcChannels.webFetch, vStr1, async (_e, url: string) => {
+    const d = db();
+    const st = getSettings(d);
+    const u = String(url || '').trim();
+    if (!u) throw new Error('Empty URL');
+    try {
+      const r = await fetchReadable(u, { allowlist: st.webAllowlist || [] });
+      return { title: r.title, url: r.url, text: r.text.slice(0, 100 * 1024), contentType: r.contentType, truncated: r.truncated };
+    } catch (e) {
+      if (e instanceof WebError) {
+        throw Object.assign(new Error(`${e.code}: ${e.message.replace(/^[A-Z_]+: /, '')}`), { code: e.code, action: e.action });
+      }
+      throw e;
+    }
   });
 }
 
@@ -2006,6 +2082,11 @@ function registerHistoryIpc(): void {
   typedHandle(IpcChannels.runs, vNone, () => listRuns(50));
 
   typedHandle(IpcChannels.reveal, vStr1, async (_e, dir: string) => revealPath(getPopup(), dir));
+  typedHandle(IpcChannels.openExternal, vStr1, async (_e, url: string) => {
+    const clean = String(url || '').trim();
+    if (!/^https?:\/\//i.test(clean)) throw new Error('Only http/https URLs can be opened');
+    return openExternalUrl(getPopup(), clean);
+  });
 
   // Undo a run's reversible ops in reverse order, through the normal
   // permission layer (approvals + policy apply to every reversal).
