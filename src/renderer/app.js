@@ -6640,6 +6640,16 @@ var ctxAppName = '';
 var ctxPreviewFor = null;
 var ctxChoiceText = null;
 var ctxNoticeShown = false;
+var screenAutoOn = false;
+/** Sync the auto-capture toggle with this conversation's opt-in. */
+async function paintScreenAuto() {
+  try {
+    var s = await window.nexio.getSettings();
+    screenAutoOn = !!((s.screenAuto || {})[convId]);
+    var box = document.getElementById('ctx-screenauto');
+    if (box) box.checked = screenAutoOn;
+  } catch (e) { /* tray best-effort */ }
+}
 var CTX_ORDER = ['selection', 'files', 'folder', 'page', 'clipboard', 'screenshot'];
 var CTX_ICONS = {
   selection: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 10h16M4 14h10M4 18h7"/></svg>',
@@ -6717,6 +6727,31 @@ function renderCtxTray() {
     ctxSay(t('context.detachAll'));
   };
   labelRow.appendChild(detach);
+  // Per-conversation auto-capture opt-in: always visible, off by default.
+  var autoWrap = document.createElement('label');
+  autoWrap.className = 'ctx-auto';
+  autoWrap.title = t('context.screenAutoDesc');
+  var autoBox = document.createElement('input');
+  autoBox.type = 'checkbox';
+  autoBox.id = 'ctx-screenauto';
+  autoBox.checked = screenAutoOn === true;
+  autoBox.onchange = function () {
+    void (async function () {
+      try {
+        var s = await window.nexio.getSettings();
+        var map = Object.assign({}, s.screenAuto);
+        if (autoBox.checked) map[convId] = true;
+        else delete map[convId];
+        await window.nexio.setSettings({ screenAuto: map });
+        screenAutoOn = autoBox.checked;
+      } catch (e) { autoBox.checked = screenAutoOn === true; }
+    })();
+  };
+  autoWrap.appendChild(autoBox);
+  var autoTx = document.createElement('span');
+  autoTx.textContent = t('context.screenAuto');
+  autoWrap.appendChild(autoTx);
+  labelRow.appendChild(autoWrap);
   host.appendChild(labelRow);
   var ordered = ctxViews.slice().sort(function (a, b) { return CTX_ORDER.indexOf(a.source) - CTX_ORDER.indexOf(b.source); });
   ordered.forEach(function (v) {
@@ -6799,6 +6834,7 @@ function renderCtxTray() {
   tray.appendChild(host);
   renderCtxPreview(host);
   try { requestResize(); } catch (e) {}
+  void paintScreenAuto();
   // context examples feed the empty-state suggestions
   try { suggestCache = null; if (!inputEl.value) maybeSuggest(); } catch (e) {}
 }

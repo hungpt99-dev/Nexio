@@ -168,6 +168,8 @@ export interface Settings {
   contextNoticeDismissed?: boolean;
   /** Log file names (not just hashes) in run logs (default false). */
   contextSaveFileNames?: boolean;
+  /** Per-conversation auto-capture of the screen (opt-in, off unless true). */
+  screenAuto?: Record<string, boolean>;
   /** Decision-model engines (System One: Jev cloud / Laya local / compatible).
    * All OFF by default; natural language uses the normal chat turn until configured. */
   decisions?: {

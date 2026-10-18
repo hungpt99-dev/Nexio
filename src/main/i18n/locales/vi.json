@@ -462,5 +462,7 @@
   "context.shotCapture": "Chụp màn hình",
   "context.shotRemove": "Gỡ ảnh chụp",
   "context.openSettings": "Mở Cài đặt hệ thống",
-  "context.screenRecordingFix": "Hãy cho phép Ghi màn hình cho Nexio, rồi chạy lại /screen."
+  "context.screenRecordingFix": "Hãy cho phép Ghi màn hình cho Nexio, rồi chạy lại /screen.",
+  "context.screenAuto": "Tự động chụp màn hình",
+  "context.screenAutoDesc": "Khi yêu cầu cần ngữ cảnh màn hình mà chưa có gì đính kèm, tự động chụp cửa sổ đang mở cho cuộc trò chuyện này. Mặc định tắt."
 }

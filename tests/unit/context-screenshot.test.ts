@@ -5,6 +5,7 @@ import {
 } from '../../src/main/context/screenshot';
 import { probeScreenCapture, probeSpeaksPlainly } from '../../src/main/capabilities/registry';
 import { beginSnapshot, __resetContextStoreForTests } from '../../src/main/context/store';
+import { maybeAutoCapture } from '../../src/main/context/service';
 
 function thumb(id: string, name: string, displayId = '1'): SourceThumb {
   const png = Buffer.alloc(2048, 7);
@@ -111,6 +112,44 @@ describe('screenshot probe speaks plainly and fails closed', () => {
     expect(staged[0].mime).toBe('image/png');
     expect(staged[0].name).toContain('screenshot-');
     clearShot(snap);
+    expect(screenshotStaged()).toEqual([]);
+  });
+});
+
+describe('opt-in auto-capture (router-driven, never keyword-driven)', () => {
+  const shotDeps = () => ({
+    probe: () => ({ available: true, reason: 'ok', action: '' }),
+    capturer: () => deps(),
+  });
+  it('stays off: toggle off, proceed action, or no snapshot', async () => {
+    __resetContextStoreForTests();
+    const d = deps();
+    const calls: string[] = [];
+    const counting: CapturerDeps = { ...d, hidePopup: () => { calls.push('hide'); } };
+    expect(await maybeAutoCapture({} as never, 'choice', false, { probe: () => ({ available: true, reason: '', action: '' }), capturer: () => counting })).toEqual({ captured: false });
+    expect(await maybeAutoCapture({} as never, 'proceed', true, shotDeps())).toEqual({ captured: false });
+    expect(calls).toEqual([]);
+  });
+  it('captures + attaches when the turn would otherwise stall', async () => {
+    __resetContextStoreForTests();
+    beginSnapshot({ name: 'Acme', windowTitle: 'Report.docx', isBrowser: false }, WIN);
+    const r = await maybeAutoCapture({ contextDenyList: [] } as never, 'empty', true, shotDeps());
+    expect(r.captured).toBe(true);
+    expect(r.sha).toHaveLength(16);
+    const staged = screenshotStaged();
+    expect(staged).toHaveLength(1);
+  });
+  it('probe failure and capture refusal keep the stall flow (fail-closed)', async () => {
+    __resetContextStoreForTests();
+    beginSnapshot({ name: 'Acme', windowTitle: 'Report.docx', isBrowser: false }, WIN);
+    const denied = await maybeAutoCapture({} as never, 'choice', true, {
+      probe: () => ({ available: false, reason: 'not allowed', action: 'open settings' }),
+      capturer: () => deps(),
+    });
+    expect(denied.captured).toBe(false);
+    expect(denied.reason).toBe('not allowed');
+    const refused = await maybeAutoCapture({ contextDenyList: ['acme'] } as never, 'choice', true, shotDeps());
+    expect(refused.captured).toBe(false);
     expect(screenshotStaged()).toEqual([]);
   });
 });

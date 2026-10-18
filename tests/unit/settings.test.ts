@@ -14,6 +14,8 @@ describe('settings validation', () => {
     expect(validateSettings({ model: '' })).toHaveLength(1);
     expect(validateSettings({ baseUrl: 'notaurl' })).toHaveLength(1);
     expect(validateSettings({ hotkey: '!!!' })).toHaveLength(1);
+    expect(validateSettings({ screenAuto: { c1: true } })).toEqual([]);
+    expect(validateSettings({ screenAuto: { c1: 'yes' } as never })).toHaveLength(1);
   });
   it('persists round-trip in sqlite', () => {
     const db = openTestDb();

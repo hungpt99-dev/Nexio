@@ -462,5 +462,7 @@
   "context.shotCapture": "Capture screen",
   "context.shotRemove": "Remove screenshot",
   "context.openSettings": "Open System Settings",
-  "context.screenRecordingFix": "Allow Screen Recording for Nexio, then run /screen again."
+  "context.screenRecordingFix": "Allow Screen Recording for Nexio, then run /screen again.",
+  "context.screenAuto": "Auto-capture screen",
+  "context.screenAutoDesc": "When a request needs screen context and nothing is attached, capture the active window automatically for this conversation. Off by default."
 }
