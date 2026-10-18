@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { IpcChannels, IpcErrorEnvelope, IpcInvokeChannels, IpcPushChannels, IpcSendChannels } from '../shared/ipc-channels';
-import { getSettings, updateSettings, isKnownProvider } from './store/settings';
+import { getSettings, updateSettings, isKnownProvider, pruneScreenAuto } from './store/settings';
 import { getSecret, apiKeyService, decisionKeyService, isEncryptionAvailable } from './store/secrets';
 import { createConversation, listConversations, addMessage, getMessages, deleteConversation } from './db/conversations';
 import { listTemplates, upsertTemplate, listWorkflows, render, getTemplate } from './db/templates';
@@ -68,8 +68,8 @@ import { rebuildTray } from './tray';
 import { hide as visHide, isPinned as visIsPinned, setPinned as visSetPinned } from './app/window-visibility';
 import { clear as clearContextSnapshot, getSnapshot } from './context/store';
 import { applyAutoAttach, attachSource, detachSource, refreshContext } from './context/manager';
-import { buildSnapshotView } from './context/prompt';
-import { logContextUse, resolveContextForSend, takeTaskContextCopy } from './context/service';
+import { buildSnapshotView, buildUserContextBlock } from './context/prompt';
+import { logContextUse, maybeAutoCapture, resolveContextForSend, takeTaskContextCopy } from './context/service';
 import { onPopupShownForContext } from './popup';
 import type { ActiveWindow } from './app/external-window';
 import { t } from './i18n/index';
@@ -973,14 +973,41 @@ async function runSend(
       for (const p of prepared) appendLog(wlog.path, { runId: requestId, attachment: p.log });
     } catch { /* logging never breaks the run */ }
   }
-  const userParts = buildUserParts(text, prepared);
+  let userParts = buildUserParts(text, prepared);
   // On-screen context: typed decision (context_route point); attached contents join the prompt.
-  const ctxRes = await resolveContextForSend(s, text, {
+  let ctxRes = await resolveContextForSend(s, text, {
     stagedCount: staged.length,
     db: d,
     signal: aborter.signal,
     decideContext: contextDecideFor(d, s, storeMode, aborter.signal) || undefined,
   });
+  // Opt-in auto-capture: toggle on for this conversation + the turn would
+  // otherwise stall asking for context → capture the window and proceed.
+  // Probe/capture refusal keeps the existing choice/empty flow untouched.
+  if ((ctxRes.action === 'choice' || ctxRes.action === 'empty') && !incognito && (s.screenAuto || {})[conversationId] === true) {
+    const auto = await maybeAutoCapture(s, ctxRes.action, true);
+    if (auto.captured) {
+      const shot = screenshotStaged();
+      if (shot.length) {
+        const more = prepareAttachments(conversationId, shot, cwd0, policyFor(s, cwd0),
+          { provider: s.provider, localTextFallback: s.localTextFallback === true });
+        prepared = [...prepared, ...more];
+        userParts = buildUserParts(text, prepared);
+        try {
+          const wlog = createRunLog(undefined, requestId);
+          for (const p of more) appendLog(wlog.path, { runId: requestId, attachment: p.log });
+          appendLog(wlog.path, { runId: requestId, autoCapture: { source: 'screenshot', size: auto.size, sha: auto.sha } });
+        } catch { /* logging never breaks the run */ }
+      }
+      const snapNow = getSnapshot();
+      if (snapNow) {
+        const attached = [...snapNow.attached].filter((a) => snapNow.states[a] === 'available');
+        const block = buildUserContextBlock(snapNow, attached);
+        ctxRes = { ...ctxRes, action: 'proceed', attached, ...(block ? { block } : {}) };
+        try { logContextUse(requestId, snapNow, attached, s.contextSaveFileNames === true, 'send-auto'); } catch { /* noop */ }
+      }
+    }
+  }
   if (!incognito && ctxRes.attached.length) {
     try { logContextUse(requestId, getSnapshot() as never, ctxRes.attached, s.contextSaveFileNames === true, 'send'); } catch { /* logging never breaks runs */ }
   }
@@ -1803,7 +1830,7 @@ function registerDataIpc(): void {
   typedHandle(IpcChannels.listConversations, vNone, () => listConversations(db()));
   typedHandle(IpcChannels.createConversation, vOptStr, (_e, title?: string) => createConversation(db(), title));
   typedHandle(IpcChannels.getMessages, vStr1, (_e, id: string) => getMessages(db(), id));
-  typedHandle(IpcChannels.deleteConversation, vStr1, (_e, id: string) => { deleteConversation(db(), id); try { deleteRunAttachments(appBaseDir(), id); } catch { /* best-effort */ } return true; });
+  typedHandle(IpcChannels.deleteConversation, vStr1, (_e, id: string) => { deleteConversation(db(), id); try { deleteRunAttachments(appBaseDir(), id); } catch { /* best-effort */ } try { pruneScreenAuto(db(), String(id)); } catch { /* best-effort */ } return true; });
   typedHandle(IpcChannels.listTemplates, vNone, () => listTemplates(db()));
   typedHandle(IpcChannels.upsertTemplate, vObj0, (_e, t) => upsertTemplate(db(), t));
   typedHandle(IpcChannels.listWorkflows, vNone, () => listWorkflows(db()));
@@ -2069,12 +2096,37 @@ function registerAgentIpc(): void {
           attachMeta = `Attached files: ${prepared.map((p) => p.ref.path).join('; ')}`;
         }
         // On-screen context: same router as send; choice/empty answers, doesn't run.
-        const actx = await resolveContextForSend(s, text, {
+        let actx = await resolveContextForSend(s, text, {
           stagedCount: staged.length,
           db: d,
           signal: controller.signal,
           decideContext: contextDecideFor(d, s, 'do', controller.signal) || undefined,
         });
+        // Opt-in auto-capture (same rule as the foreground path).
+        if ((actx.action === 'choice' || actx.action === 'empty') && !incognito && (s.screenAuto || {})[conversationId] === true) {
+          const auto = await maybeAutoCapture(s, actx.action, true);
+          if (auto.captured) {
+            const shot = screenshotStaged();
+            if (shot.length) {
+              const more = prepareAttachments(conversationId, shot, cwd, policyFor(s, cwd),
+                { provider: s.provider, localTextFallback: s.localTextFallback === true });
+              registerRunAttachments(runId, more.map((p) => p.ref));
+              try {
+                const wlog = createRunLog(undefined, runId);
+                for (const p of more) appendLog(wlog.path, { runId, attachment: p.log });
+                appendLog(wlog.path, { runId, autoCapture: { source: 'screenshot', size: auto.size, sha: auto.sha } });
+              } catch { /* logging never breaks the run */ }
+              userParts = buildUserParts(text, more);
+              attachMeta = `Attached files: ${more.map((p) => p.ref.path).join('; ')}`;
+            }
+            const snapNow = getSnapshot();
+            if (snapNow) {
+              const attached = [...snapNow.attached].filter((a) => snapNow.states[a] === 'available');
+              const block = buildUserContextBlock(snapNow, attached);
+              actx = { ...actx, action: 'proceed', attached, ...(block ? { block } : {}) };
+            }
+          }
+        }
         if (actx.action !== 'proceed') {
           const amsg = actx.action === 'choice'
             ? t('context.choiceQuestion', { options: (actx.choiceOptions || []).map((o) => t(`context.opt${({ selection: 'Selected', files: 'Files', folder: 'Folder', page: 'Page', clipboard: 'Clipboard' } as Record<string, string>)[o] || o}`)).join(` ${t('context.or')} `) })

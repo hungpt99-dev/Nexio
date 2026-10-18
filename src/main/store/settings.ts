@@ -67,6 +67,7 @@ export const DEFAULT_SETTINGS: Settings = {
   contextDenyList: [],
   contextNoticeDismissed: false,
   contextSaveFileNames: false,
+  screenAuto: {},
   webAllow: true,
   webAskBefore: false,
   webSaveQueries: false,
@@ -137,6 +138,7 @@ export function validateSettings(s: Partial<Settings>): string[] {
   if (s.contextDenyList !== undefined && (!Array.isArray(s.contextDenyList) || !s.contextDenyList.every((x) => typeof x === 'string'))) errors.push('contextDenyList must be an array of strings');
   if (s.contextNoticeDismissed !== undefined && typeof s.contextNoticeDismissed !== 'boolean') errors.push('contextNoticeDismissed must be boolean');
   if (s.contextSaveFileNames !== undefined && typeof s.contextSaveFileNames !== 'boolean') errors.push('contextSaveFileNames must be boolean');
+  if (s.screenAuto !== undefined && (typeof s.screenAuto !== 'object' || Array.isArray(s.screenAuto) || !Object.values(s.screenAuto).every((v) => typeof v === 'boolean'))) errors.push('screenAuto must be a map of booleans');
   if (s.webAllow !== undefined && typeof s.webAllow !== 'boolean') errors.push('webAllow must be boolean');
   if (s.webAskBefore !== undefined && typeof s.webAskBefore !== 'boolean') errors.push('webAskBefore must be boolean');
   if (s.webSaveQueries !== undefined && typeof s.webSaveQueries !== 'boolean') errors.push('webSaveQueries must be boolean');
@@ -204,4 +206,15 @@ export function updateSettings(db: DatabaseSync, patch: Partial<Settings>): Sett
     db.prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').run(k, JSON.stringify(v));
   }
   return getSettings(db);
+}
+
+/** Drop a conversation's auto-capture opt-in (conversation deleted/cleared). */
+export function pruneScreenAuto(db: DatabaseSync, conversationId: string): void {
+  try {
+    const cur = getSettings(db).screenAuto || {};
+    if (!(conversationId in cur)) return;
+    const next = { ...cur };
+    delete next[conversationId];
+    updateSettings(db, { screenAuto: next });
+  } catch { /* cleanup best-effort */ }
 }

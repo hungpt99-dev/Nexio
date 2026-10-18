@@ -7,6 +7,47 @@ import { attachSource, applyAutoAttach } from './manager';
 import { appendLog, createRunLog } from '../agent/log';
 import { buildUserContextBlock, resolveContextIntent, type ContextIntent } from './prompt';
 import { getSnapshot, isFileExcluded, sha256 } from './store';
+import { captureScreenshot, electronCapturer, storeShot, type CapturerDeps } from './screenshot';
+import { probeScreenCapture, type ProbeResult } from '../capabilities/registry';
+
+export interface AutoCaptureDeps {
+  probe?: () => ProbeResult;
+  capturer?: () => CapturerDeps;
+}
+
+/**
+ * Opt-in auto-capture: when the user enabled "auto screen" for this
+ * conversation AND the turn would otherwise stall asking for context
+ * (choice/empty), capture the active window and attach it. Anything else —
+ * toggle off, proceed, probe failure, capture refusal — returns not-captured
+ * and the caller keeps its existing choice/empty flow. Never throws.
+ */
+export async function maybeAutoCapture(
+  s: Settings,
+  action: 'proceed' | 'choice' | 'empty',
+  screenAutoOn: boolean,
+  deps: AutoCaptureDeps = {},
+): Promise<{ captured: boolean; sha?: string; size?: number; reason?: string }> {
+  const quiet = { captured: false };
+  if (!screenAutoOn || action === 'proceed') return quiet;
+  const snap = getSnapshot();
+  if (!snap || !snap.external) return quiet;
+  let probe: ProbeResult;
+  try {
+    probe = (deps.probe || probeScreenCapture)();
+  } catch {
+    return quiet;
+  }
+  if (!probe.available) return { ...quiet, reason: probe.reason };
+  try {
+    const r = await captureScreenshot('window', snap.external, s.contextDenyList || [], (deps.capturer || electronCapturer)());
+    if (!r.ok) return quiet;
+    const meta = storeShot(snap, r.shot);
+    return { captured: true, sha: meta.sha, size: meta.size };
+  } catch {
+    return quiet;
+  }
+}
 
 export interface ContextResolution {
   block?: string;

@@ -281,3 +281,17 @@ Do not include keys, tokens, or personal data in reports.
   nearest due job. Documented honestly: quit the app and jobs don't fire
   (miss policy `run-once`/`skip` covers the gap); start-at-login + tray
   residency keep it alive.
+
+## Screen auto-capture (per-conversation opt-in, off by default)
+
+- The toggle is the consent: capture fires only when the user enabled it
+  for that conversation AND the turn would otherwise stall asking for
+  context (router `choice`/`empty`). Every other outcome keeps the
+  ask-first flow. No capture in incognito; deleting a conversation prunes
+  its opt-in.
+- Captures attach through the same pipeline as manual shots (temp dir,
+  cleanup, size caps, vision gating, metadata-only logs) and land in the
+  tray chip, removable before the next send. Residual risk, stated
+  plainly: the capture for the current send happens after Enter, so review
+  happens after the fact for that one turn — leave the toggle off if that
+  bothers you.

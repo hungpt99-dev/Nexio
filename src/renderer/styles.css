@@ -756,6 +756,8 @@ html[dir="rtl"] #palette .item, html[dir="rtl"] .appr .top, html[dir="rtl"] .app
 .ctx-filerow { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
 .ctx-filename { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ctx-shotimg { max-width: 100%; max-height: 220px; border-radius: 8px; border: 1px solid var(--border); }
+.ctx-auto { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); cursor: pointer; margin-left: 8px; }
+.ctx-auto input { accent-color: var(--accent); }
 .ctx-firstnote { background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
   padding: 10px 12px; font-size: 13px; color: var(--text-soft); display: flex; flex-direction: column; gap: 8px; }
 .ctx-firstnote-row { display: flex; gap: 8px; }

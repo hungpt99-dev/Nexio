@@ -23,6 +23,10 @@ no UI, no claims).
   the native image pipeline (EXIF strip, size cap) to vision models, with a
   switch-model notice otherwise. macOS needs Screen Recording permission
   (the UI links the exact Settings pane). Bytes live in the snapshot only.
+  Per-conversation **auto-capture** (off by default, toggle in the context
+  tray): when a turn would otherwise stall asking for context, the active
+  window is captured and attached automatically. Probe/capture refusal keeps
+  the ask-first flow. No capture in incognito; opt-in pruned on delete.
 
 ## Decisions
 

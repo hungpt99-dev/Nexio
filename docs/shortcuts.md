@@ -39,5 +39,8 @@ Handled before the router, in Ask and Do:
   this. The popup hides during capture. Review the thumbnail chip and remove
   it any time before sending; it rides the normal attachment pipeline
   (vision models get the image, others get a switch-model notice).
+- Auto-capture toggle (context tray checkbox, per conversation, off by
+  default): when on and a turn would otherwise stall asking for context,
+  the window captures automatically. Never in incognito.
 - `/schedule` — list/add/pause/resume/run/delete scheduled jobs
   (`/schedule help` prints usage).
