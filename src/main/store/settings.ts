@@ -62,6 +62,18 @@ export const DEFAULT_SETTINGS: Settings = {
   taskResume: 'ask',
   taskNotifications: true,
   taskPruneDays: 30,
+  contextEnabled: true,
+  contextAutoAttach: 'all',
+  contextSources: {},
+  contextCopyFallback: false,
+  contextDenyList: [],
+  contextNoticeDismissed: false,
+  contextSaveFileNames: false,
+  webAllow: true,
+  webAskBefore: false,
+  webSaveQueries: false,
+  webConsent: {},
+  webAllowlist: [],
 };
 
 export function validateSettings(s: Partial<Settings>): string[] {
@@ -121,6 +133,18 @@ export function validateSettings(s: Partial<Settings>): string[] {
   if (s.taskResume !== undefined && !['ask', 'resume', 'discard'].includes(s.taskResume)) errors.push('taskResume must be ask, resume or discard');
   if (s.taskNotifications !== undefined && typeof s.taskNotifications !== 'boolean') errors.push('taskNotifications must be boolean');
   if (s.taskPruneDays !== undefined && (typeof s.taskPruneDays !== 'number' || s.taskPruneDays < 1 || s.taskPruneDays > 3650)) errors.push('taskPruneDays must be 1..3650');
+  if (s.contextEnabled !== undefined && typeof s.contextEnabled !== 'boolean') errors.push('contextEnabled must be boolean');
+  if (s.contextAutoAttach !== undefined && !['all', 'ask', 'off'].includes(s.contextAutoAttach)) errors.push('contextAutoAttach must be all, ask or off');
+  if (s.contextSources !== undefined && (typeof s.contextSources !== 'object' || Array.isArray(s.contextSources))) errors.push('contextSources must be an object');
+  if (s.contextCopyFallback !== undefined && typeof s.contextCopyFallback !== 'boolean') errors.push('contextCopyFallback must be boolean');
+  if (s.contextDenyList !== undefined && (!Array.isArray(s.contextDenyList) || !s.contextDenyList.every((x) => typeof x === 'string'))) errors.push('contextDenyList must be an array of strings');
+  if (s.contextNoticeDismissed !== undefined && typeof s.contextNoticeDismissed !== 'boolean') errors.push('contextNoticeDismissed must be boolean');
+  if (s.contextSaveFileNames !== undefined && typeof s.contextSaveFileNames !== 'boolean') errors.push('contextSaveFileNames must be boolean');
+  if (s.webAllow !== undefined && typeof s.webAllow !== 'boolean') errors.push('webAllow must be boolean');
+  if (s.webAskBefore !== undefined && typeof s.webAskBefore !== 'boolean') errors.push('webAskBefore must be boolean');
+  if (s.webSaveQueries !== undefined && typeof s.webSaveQueries !== 'boolean') errors.push('webSaveQueries must be boolean');
+  if (s.webConsent !== undefined && (typeof s.webConsent !== 'object' || Array.isArray(s.webConsent))) errors.push('webConsent must be an object');
+  if (s.webAllowlist !== undefined && (!Array.isArray(s.webAllowlist) || !s.webAllowlist.every((x) => typeof x === 'string'))) errors.push('webAllowlist must be an array of strings');
   return errors;
 }
 

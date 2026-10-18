@@ -16,6 +16,10 @@ import { IpcChannels } from '../shared/ipc-channels';
 
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) app.quit();
+// why: closed/piped stdout (e.g. `| head`) raises EPIPE as uncaught and kills the app.
+for (const s of [process.stdout, process.stderr] as const) {
+  try { s.on('error', () => {}); } catch { /* headless */ }
+}
 app.setName('Nexio');
 
 app.on('second-instance', () => togglePopup('second-instance'));
@@ -136,6 +140,10 @@ app.on('before-quit', (e) => {
 app.on('will-quit', () => {
   globalShortcut.unregisterAll();
   resetDialogLock();
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    require('./context/store').clear();
+  } catch { /* noop */ }
   void shutdownExtensions().finally(() => closeDb());
 });
 app.on('window-all-closed', () => { /* stay in tray */ });

@@ -18,6 +18,8 @@ Verified from source; packaged-SQLite caveat in main README.
 | Do loop | Built-in tool loop in main, approvals, redacted JSONL + runs.jsonl |
 | Tasks | Spawn/queue/subtask scheduler (locks, per-task approvals, family undo); embeddings reserved |
 | Ask loop | Same loop, read-only: askSafe tools only, MODE_READ_ONLY guard, 8 calls / 60 s, no approvals, secrets redacted |
+| Web search | Zero-config: model-native then keyless hosted (DuckDuckGo) via a session-cached resolver, per-backend consent (onboarding + inline), honest states, single fallthrough, step rows name the backend (see `docs/web-search.md`) |
+| Context awareness | On by default after one-time notice: selection/files/folder/clipboard/page snapshot, chips, one-tap choice, `/context /clip /sel`, `context_get`/`context_status` (see `docs/context-awareness.md`) |
 | Memory | Local SQLite (memories/FTS/events), retrieval ≤8 items/~1200 tokens, enforced prohibitions, incognito; embeddings reserved |
 | Memory recall | One-tap rows for names/preferences, honesty rule + live status in prompt, identity-query boost, no step rows for lookups |
 | i18n | en + vi UI (system default, no-restart switch, RTL, pseudo-locale), 15 intent packs, language-agnostic memory/router, CJK trigram search, IME-safe input, `Intl` formats; `npm run i18n:check` in CI |

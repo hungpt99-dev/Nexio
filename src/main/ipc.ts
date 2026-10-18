@@ -64,6 +64,12 @@ import { getLocaleTag, isRtl, loadDict, resolveAppLocale, setLocale } from './i1
 import { availableLocales } from './i18n/index';
 import { rebuildTray } from './tray';
 import { hide as visHide, isPinned as visIsPinned, setPinned as visSetPinned } from './app/window-visibility';
+import { clear as clearContextSnapshot, getSnapshot } from './context/store';
+import { applyAutoAttach, attachSource, detachSource, refreshContext } from './context/manager';
+import { buildSnapshotView } from './context/prompt';
+import { logContextUse, resolveContextForSend, takeTaskContextCopy } from './context/service';
+import { onPopupShownForContext } from './popup';
+import type { ActiveWindow } from './app/external-window';
 import { t } from './i18n/index';
 import { openExternalUrl, pickAttachFiles, pickFile, pickFolder, revealPath, withDialogLock } from './app/dialogs';
 import { resolveDbPath } from './db/db';
@@ -88,6 +94,11 @@ import { TaskParkedError } from './agent/types';
 import { makeSubtaskTools } from './tasks/subtaskTools';
 import { toAppError, missingKeyError } from './errors/app-error';
 import { requireApiKey, writeSecret, writeSessionSecret, secretsStatus, clearReentry } from './secrets/index';
+import { getWebAvailability, getWebHealth, runSearch, testWebConfig, type WebRunBudget } from './web/manager';
+import { resolveWebBackend } from './web/resolve-backend';
+import { makeWebFetchTool, makeWebSearchTool } from './web/tools';
+import { fetchReadable } from './web/fetch';
+import { WebError } from './web/types';
 
 const aborters = new Map<string, AbortController>();
 let seq = 0;
@@ -931,7 +942,19 @@ async function runSend(
   // from toggle events — toggling without sending stores nothing.
   const storeMode = mode === 'chat' ? 'ask' : 'do';
   const slashExtra = opts.slash ? { command: opts.slash.command.replace(/^\//, ''), args: opts.slash.args } : {};
-  if (!incognito) addMessage(d, conversationId, 'user', text, { mode: storeMode, ...slashExtra });
+  // Context chips: whatever is attached at send time is recorded as metadata only.
+  const ctxPre = (() => {
+    try {
+      if (s.incognito === true || s.contextEnabled === false) return [];
+      const snap = getSnapshot();
+      if (!snap) return [];
+      applyAutoAttach(s, snap);
+      return [...snap.attached].filter((a) => snap.states[a] === 'available');
+    } catch {
+      return [];
+    }
+  })();
+  if (!incognito) addMessage(d, conversationId, 'user', text, { mode: storeMode, ...slashExtra, ...(ctxPre.length ? { ctx: { attached: ctxPre } } : {}) });
   const history = getMessages(d, conversationId);
   // why: unreadable/missing keys fail fast with one friendly error, never a
   // raw decrypt string after minutes of silence (env keys still win for dev).
@@ -958,6 +981,36 @@ async function runSend(
     } catch { /* logging never breaks the run */ }
   }
   const userParts = buildUserParts(text, prepared);
+  // On-screen context: metadata-only router; attached contents join the prompt.
+  const ctxRes = await resolveContextForSend(s, text, {
+    stagedCount: staged.length,
+    db: d,
+    signal: aborter.signal,
+    askModel: key ? (prompt) => classifyWithModel(s, key, prompt, aborter.signal) : undefined,
+  });
+  if (!incognito && ctxRes.attached.length) {
+    try { logContextUse(requestId, getSnapshot() as never, ctxRes.attached, s.contextSaveFileNames === true, 'send'); } catch { /* logging never breaks runs */ }
+  }
+  if (ctxRes.action !== 'proceed') {
+    // Deictic with nothing attached: choice or honest "nothing selected".
+    // Mirrors the clarify flow (works in Ask and Do): answer, don't run.
+    routeStatus(sender, requestId, 'answering');
+    const msg = ctxRes.action === 'choice'
+      ? t('context.choiceQuestion', { options: (ctxRes.choiceOptions || []).map((o) => t(`context.opt${({ selection: 'Selected', files: 'Files', folder: 'Folder', page: 'Page', clipboard: 'Clipboard' } as Record<string, string>)[o] || o}`)).join(` ${t('context.or')} `) })
+      : t('context.nothingSelected');
+    if (!incognito) addMessage(d, conversationId, 'assistant', msg, { mode: storeMode });
+    sender.send(IpcChannels.chatStream, { token: msg, done: false, conversationId, requestId });
+    try {
+      sender.send(IpcChannels.contextEvent, ctxRes.action === 'choice'
+        ? { kind: 'choice', options: ctxRes.choiceOptions || [] }
+        : { kind: 'actions', actions: ['attach', 'clipboard'] });
+    } catch { /* window gone */ }
+    sender.send(IpcChannels.chatStream, { token: '', done: true, conversationId, requestId });
+    aborters.delete(requestId);
+    return msg;
+  }
+  const ctxBlock = ctxRes.block;
+  const ctxAttached = ctxRes.attached;
   // Intent routing: an explicit pill selection wins; otherwise classify.
   // Ask mode (chat) never routes to the Do loop. Do behavior is unchanged:
   // act → built-in agent loop, answer/clarify → plain streamed response.
@@ -1090,8 +1143,12 @@ async function runSend(
         requireApprovalForWrites: true,
         mode: 'ask',
         askMcpAllow: s.askMcpTools || [],
-        tools: [...ALL_TOOLS, ...memoryTools(d, { maxItems: s.memoryMaxItems ?? 500 }), ...extras.tools],
-        systemExtra: [extras.systemExtra, memExtra].filter(Boolean).join('\n') || undefined,
+        tools: webRunTools(s, { provider: s.provider, model: s.model, apiKey: key, ...(s.baseUrl ? { baseUrl: s.baseUrl } : {}) }, memoryTools(d, { maxItems: s.memoryMaxItems ?? 500 }), extras.tools).tools,
+        webSettings: s,
+        webApiKey: key,
+        webAskBefore: s.webAskBefore === true,
+        systemExtra: [extras.systemExtra, memExtra, ctxBlock].filter(Boolean).join('\n') || undefined,
+        contextAttached: ctxAttached,
         hooks: null,
         signal: aborter.signal,
         emit,
@@ -1159,6 +1216,8 @@ async function runSend(
         imageMode: s.compatibleImages || 'auto',
         memory: mem.usedIds.length || memExtra ? { block: memExtra, usedIds: mem.usedIds } : undefined,
         incognito,
+        ...(ctxBlock ? { contextBlock: ctxBlock } : {}),
+        ...(ctxAttached.length ? { contextAttached: ctxAttached } : {}),
         ...(memProtected.length ? { extraProtected: memProtected } : {}),
         taskId,
         taskLock: lockHooksFor(taskId),
@@ -1228,6 +1287,36 @@ async function runSend(
   throw asError(new Error(`route-error: unexpected mode ${String(effective)}`));
 }
 
+export interface WebDeps {
+  provider: string;
+  model: string;
+  apiKey: string;
+  baseUrl?: string;
+}
+
+/** Resolver deps for the current settings: stored key, else dev env key, else none (hosted needs none). */
+export function searchDepsFor(st: Settings): WebDeps {
+  let apiKey = '';
+  try {
+    apiKey = requireApiKey(db(), st.provider);
+  } catch {
+    apiKey = process.env[`${String(st.provider).toUpperCase()}_API_KEY`] || '';
+  }
+  return { provider: st.provider, model: st.model, apiKey, ...(st.baseUrl ? { baseUrl: st.baseUrl } : {}) };
+}
+
+/** Web tools bound to this run: offered only when the resolver says available. */
+function webRunTools(s: Settings, w: WebDeps, mem: Tool[], extra: Tool[]): { tools: Tool[]; budget: WebRunBudget } {
+  const budget: WebRunBudget = { searches: 0, fetches: 0 };
+  const base = ALL_TOOLS.filter((t) => t.name !== 'web_search' && t.name !== 'web_fetch');
+  if (s.webAllow === false) return { tools: [...base, ...mem, ...extra], budget };
+  const avail = getWebAvailability(s, w.provider, w.model, w.apiKey);
+  if (avail.state !== 'available') return { tools: [...base, ...mem, ...extra], budget };
+  const deps = { settings: s, provider: w.provider, model: w.model, apiKey: w.apiKey, ...(w.baseUrl ? { baseUrl: w.baseUrl } : {}) };
+  const viaName = avail.state === 'available' ? avail.name : undefined;
+  return { tools: [...base, makeWebSearchTool(deps, budget, undefined, viaName), makeWebFetchTool(s.webAllowlist || [], budget), ...mem, ...extra], budget };
+}
+
 /** Shared built-in agent execution (Send routing + explicit agentStart). */
 async function runBuiltInAgent(o: {
   sender: Electron.WebContents; d: DatabaseSync; s: Settings; key: string;
@@ -1235,6 +1324,8 @@ async function runBuiltInAgent(o: {
   controller: AbortController; state: AgentRunState; prompt: string;
   userParts?: ContentPart[]; attachMeta?: string; imageMode?: 'auto' | 'on' | 'off';
   memory?: { block?: string; usedIds: string[] }; incognito?: boolean; extraProtected?: string[];
+  contextBlock?: string;
+  contextAttached?: string[];
   taskId?: string;
   taskLock?: { acquireWrite: (paths: string[]) => { ok: true } | { ok: false; path: string; byTask: string }; noteRead: (path: string) => string | null };
   subtaskAskFirst?: boolean;
@@ -1255,7 +1346,7 @@ async function runBuiltInAgent(o: {
   if (o.memory && o.memory.usedIds.length) {
     emit({ type: 'memory_used', count: o.memory.usedIds.length, ids: o.memory.usedIds });
   }
-  const systemExtra = [extras.systemExtra, o.memory?.block].filter(Boolean).join('\n') || undefined;
+  const systemExtra = [extras.systemExtra, o.memory?.block, o.contextBlock].filter(Boolean).join('\n') || undefined;
   const taskWaiter = approvalWaiter(state);
   // Foreground Do runs can create subtasks (same caps + first-create confirm
   // as scheduler-run tasks). Ask runs never reach here.
@@ -1302,7 +1393,10 @@ async function runBuiltInAgent(o: {
     alwaysAllow: ((s.agentAlwaysAllow || []) as AlwaysRule[]),
     requireApprovalForWrites: s.requireApprovalForWrites !== false,
     limits: { maxToolCalls: s.agentMaxCalls || 25 },
-    tools: [...ALL_TOOLS, ...memoryTools(d, { maxItems: s.memoryMaxItems ?? 500 }), ...subTools, ...extras.tools],
+    tools: webRunTools(s, { provider: s.provider, model: s.model, apiKey: key, ...(s.baseUrl ? { baseUrl: s.baseUrl } : {}) }, memoryTools(d, { maxItems: s.memoryMaxItems ?? 500 }), [...subTools, ...extras.tools]).tools,
+    webSettings: s,
+    webApiKey: key,
+    webAskBefore: s.webAskBefore === true,
     systemExtra,
     hooks: ext.hookRunner(cwd, controller.signal),
     signal: controller.signal,
@@ -1310,6 +1404,7 @@ async function runBuiltInAgent(o: {
     runId,
     incognito: o.incognito,
     ...(o.extraProtected?.length ? { extraProtected: o.extraProtected } : {}),
+    ...(o.contextAttached?.length ? { contextAttached: o.contextAttached } : {}),
     waitForApproval: o.taskId
       ? (call) => {
           o.onApprovalState?.(true, { id: call.id, tool: call.tool, summary: call.summary });
@@ -1450,6 +1545,9 @@ async function runExtWorkflowRun(
             requireApprovalForWrites: s.requireApprovalForWrites !== false,
             limits: { maxToolCalls: s.agentMaxCalls || 25 },
             tools: subTools,
+            webSettings: s,
+            webApiKey: key,
+            webAskBefore: s.webAskBefore === true,
             systemExtra: extras.systemExtra || undefined,
             hooks: ext.hookRunner(cwd, controller.signal),
             signal: controller.signal,
@@ -1520,6 +1618,9 @@ function registerSettingsIpc(): void {
   typedHandle(IpcChannels.getSettings, vNone, () => getSettings(db()));
   typedHandle(IpcChannels.setSettings, vObj0, (_e, patch: Partial<Settings>) => {
     const out = updateSettings(db(), patch);
+    if (patch.incognito === true || patch.contextEnabled === false) {
+      try { clearContextSnapshot(); } catch { /* noop */ }
+    }
     if (patch.agentStopHotkey !== undefined) refreshStopHotkey();
     if (patch.hotkey !== undefined) refreshToggleHotkey(() => togglePopup('hotkey'));
     if (patch.launchAtLogin !== undefined) applyLaunchAtLogin();
@@ -1595,6 +1696,69 @@ function registerSettingsIpc(): void {
     resetParamCache();
     return true;
   });
+  typedHandle(IpcChannels.webTest, vNone, async () => {
+    const d = db();
+    const st = getSettings(d);
+    return testWebConfig(st, searchDepsFor(st));
+  });
+  typedHandle(IpcChannels.webStatus, vNone, async () => {
+    const d = db();
+    const st = getSettings(d);
+    const deps = searchDepsFor(st);
+    const avail = getWebAvailability(st, deps.provider, deps.model, deps.apiKey);
+    const health = getWebHealth();
+    if (avail.state === 'available') {
+      return { state: 'available' as const, backend: avail.backend, name: avail.name, consented: true, health };
+    }
+    if (avail.state === 'needs_consent') {
+      const b = resolveWebBackend({ provider: deps.provider, model: deps.model, apiKey: deps.apiKey, baseUrl: st.baseUrl });
+      return { state: 'needs_consent' as const, backend: avail.backend, name: avail.name, consented: false, privacyUrl: b.privacyUrl, health };
+    }
+    return { state: 'unavailable' as const, reason: 'disabled', backend: null, name: null, consented: false, health };
+  });
+  typedHandle(IpcChannels.webConsent, vHead1, async (_e, backend: string, allow?: boolean) => {
+    const d = db();
+    const st = getSettings(d);
+    const key = String(backend || '');
+    if (!['native:anthropic', 'native:gemini', 'hosted:duckduckgo'].includes(key)) throw new Error('Unknown backend');
+    const out = updateSettings(d, { webConsent: { ...(st.webConsent || {}), [key]: allow !== false } });
+    return { consented: out.webConsent?.[key] === true };
+  });
+  typedHandle(IpcChannels.webSearch, vStr1, async (_e, query: string) => {
+    const d = db();
+    const st = getSettings(d);
+    const q = String(query || '').trim();
+    if (!q) throw new Error('Empty query');
+    const budget: WebRunBudget = { searches: 0, fetches: 0 };
+    const logQuery = st.webSaveQueries === true ? (qq: string) => {
+      try { appendLog(createRunLog().path, { runId: 'web-search', query: qq.slice(0, 200) }); } catch { /* logging never breaks search */ }
+    } : undefined;
+    try {
+      // /search and the inline confirm are explicit user actions: skip ask-before.
+      const r = await runSearch(st, searchDepsFor(st), q, { count: 5, skipAskBefore: true }, budget, logQuery);
+      return { results: r.results, backend: r.backend, ms: r.ms, reformulated: r.reformulated };
+    } catch (e) {
+      if (e instanceof WebError) {
+        throw Object.assign(new Error(`${e.code}: ${e.message.replace(/^[A-Z_]+: /, '')}`), { code: e.code, action: e.action });
+      }
+      throw e;
+    }
+  });
+  typedHandle(IpcChannels.webFetch, vStr1, async (_e, url: string) => {
+    const d = db();
+    const st = getSettings(d);
+    const u = String(url || '').trim();
+    if (!u) throw new Error('Empty URL');
+    try {
+      const r = await fetchReadable(u, { allowlist: st.webAllowlist || [] });
+      return { title: r.title, url: r.url, text: r.text.slice(0, 100 * 1024), contentType: r.contentType, truncated: r.truncated };
+    } catch (e) {
+      if (e instanceof WebError) {
+        throw Object.assign(new Error(`${e.code}: ${e.message.replace(/^[A-Z_]+: /, '')}`), { code: e.code, action: e.action });
+      }
+      throw e;
+    }
+  });
 }
 
 function registerDataIpc(): void {
@@ -1612,6 +1776,7 @@ const SLASH_DESC_KEYS: Record<string, string> = {
   history: 'slash.history', settings: 'slash.settings', log: 'slash.log',
   extensions: 'slash.extensions', memory: 'slash.memory', remember: 'slash.remember',
   forget: 'slash.forget', incognito: 'slash.incognito',
+  context: 'slash.context', clip: 'slash.clip', sel: 'slash.sel',
   spawn: 'slash.spawn', queue: 'slash.queue', tasks: 'slash.tasks',
   cancel: 'slash.cancel', clearQueue: 'slash.clearQueue', pin: 'slash.pin',
 };
@@ -1865,6 +2030,28 @@ function registerAgentIpc(): void {
           userParts = buildUserParts(text, prepared);
           attachMeta = `Attached files: ${prepared.map((p) => p.ref.path).join('; ')}`;
         }
+        // On-screen context: same router as send; choice/empty answers, doesn't run.
+        const actx = await resolveContextForSend(s, text, {
+          stagedCount: staged.length,
+          db: d,
+          signal: controller.signal,
+          askModel: key ? (prompt) => classifyWithModel(s, key, prompt, controller.signal) : undefined,
+        });
+        if (actx.action !== 'proceed') {
+          const amsg = actx.action === 'choice'
+            ? t('context.choiceQuestion', { options: (actx.choiceOptions || []).map((o) => t(`context.opt${({ selection: 'Selected', files: 'Files', folder: 'Folder', page: 'Page', clipboard: 'Clipboard' } as Record<string, string>)[o] || o}`)).join(` ${t('context.or')} `) })
+            : t('context.nothingSelected');
+          if (!incognito) addMessage(d, conversationId, 'assistant', amsg);
+          emit({ type: 'text_delta', text: amsg });
+          try {
+            sender.send(IpcChannels.contextEvent, actx.action === 'choice'
+              ? { kind: 'choice', options: actx.choiceOptions || [] }
+              : { kind: 'actions', actions: ['attach', 'clipboard'] });
+          } catch { /* window gone */ }
+          emit({ type: 'done', summary: amsg });
+          finishRun(d, sender, runId, 'agent', text, amsg, 'done', opts.cwd || s.agentCwd || os.homedir(), !incognito);
+          return;
+        }
         const full = await runBuiltInAgent({
           sender, d, s, key, content: text, history, cwd, runId,
           controller, state, prompt: text,
@@ -1872,6 +2059,8 @@ function registerAgentIpc(): void {
           ...(attachMeta ? { attachMeta } : {}),
           imageMode: s.compatibleImages || 'auto',
           ...(doMem.usedIds.length || doMemExtra ? { memory: { block: doMemExtra, usedIds: doMem.usedIds } } : {}),
+          ...(actx.block ? { contextBlock: actx.block } : {}),
+          ...(actx.attached.length ? { contextAttached: actx.attached } : {}),
           ...(incognito ? { incognito: true } : {}),
           ...(doMemProtected.length ? { extraProtected: doMemProtected } : {}),
           ...(fgTaskId ? {
@@ -2006,6 +2195,20 @@ function registerHistoryIpc(): void {
   typedHandle(IpcChannels.runs, vNone, () => listRuns(50));
 
   typedHandle(IpcChannels.reveal, vStr1, async (_e, dir: string) => revealPath(getPopup(), dir));
+  typedHandle(IpcChannels.openSystemSettings, vStr1, async (_e, pane: string) => {
+    const panes: Record<string, string> = {
+      accessibility: 'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility',
+      automation: 'x-apple.systempreferences:com.apple.preference.security?Privacy_Automation',
+    };
+    const url = panes[String(pane || '').toLowerCase()];
+    if (!url) throw new Error('Unknown settings pane');
+    return openExternalUrl(getPopup(), url);
+  });
+  typedHandle(IpcChannels.openExternal, vStr1, async (_e, url: string) => {
+    const clean = String(url || '').trim();
+    if (!/^https?:\/\//i.test(clean)) throw new Error('Only http/https URLs can be opened');
+    return openExternalUrl(getPopup(), clean);
+  });
 
   // Undo a run's reversible ops in reverse order, through the normal
   // permission layer (approvals + policy apply to every reversal).
@@ -2743,15 +2946,95 @@ export function registerIpc(): void {
   registerHistoryIpc();
   registerExtIpc();
   registerAttachIpc();
+  registerContextIpc();
   registerPopupIpc();
   assertIpcComplete();
   refreshStopHotkey();
+}
+
+/** On-screen context: capture after show, chips via contextEvent, tools read the store. */
+let contextAbort: AbortController | null = null;
+function registerContextIpc(): void {
+  onPopupShownForContext((_reason: string, external: ActiveWindow | null) => {
+    const d = db();
+    const s = getSettings(d);
+    if (s.contextEnabled === false || s.incognito === true) {
+      try { clearContextSnapshot(); } catch { /* noop */ }
+      return;
+    }
+    const sender = (() => { try { return getPopup()?.webContents || null; } catch { return null; } })();
+    if (!sender) return;
+    try { contextAbort?.abort(); } catch { /* noop */ }
+    contextAbort = new AbortController();
+    const signal = contextAbort.signal;
+    void refreshContext(s, external, {
+      cwd: s.agentCwd || os.homedir(),
+      db: d,
+      signal,
+      emit: {
+        onSource: (source, state) => {
+          try { sender.send(IpcChannels.contextEvent, { kind: 'source', source, state }); } catch { /* window gone */ }
+        },
+      },
+    }).then((snap) => {
+      if (!snap || signal.aborted) return;
+      try {
+        sender.send(IpcChannels.contextEvent, { kind: 'snapshot', snapshot: buildSnapshotView(snap) });
+      } catch { /* window gone */ }
+    }).catch(() => { /* collectors never break show */ });
+  });
+  typedHandle(IpcChannels.contextRefresh, vNone, () => {
+    const d = db();
+    void d;
+    const snap = getSnapshot();
+    return snap ? buildSnapshotView(snap) : null;
+  });
+  typedHandle(IpcChannels.contextAttach, vStr1, (_e, source: string) => {
+    const snap = getSnapshot();
+    if (!snap) return null;
+    const ok = attachSource(snap, source as never);
+    if (!ok) return null;
+    return buildSnapshotView(snap).views.find((v) => v.source === source) || null;
+  });
+  typedHandle(IpcChannels.contextDetach, vStr1, (_e, source: string) => {
+    const snap = getSnapshot();
+    if (!snap) return false;
+    detachSource(snap, source as never);
+    return true;
+  });
+  typedHandle(IpcChannels.contextExclude, vHead1, (_e, id: string, excluded: boolean) => {
+    const { setFileExcluded } = require('./context/store') as typeof import('./context/store');
+    setFileExcluded(String(id), excluded === true);
+    return true;
+  });
+  typedHandle(IpcChannels.contextStatus, vNone, () => {
+    const snap = getSnapshot();
+    if (!snap) return { sources: [], states: {}, attached: [], expiresInMs: 0 };
+    return { sources: snap.sources, states: snap.states, attached: [...snap.attached], expiresInMs: Math.max(0, snap.expiresAt - Date.now()) };
+  });
+  typedHandle(IpcChannels.contextRoute, vHead1, async (_e, text: string) => {
+    const d = db();
+    const s = getSettings(d);
+    const { snapshotMeta } = await import('./context/types');
+    const snap = getSnapshot();
+    const meta = snap ? snapshotMeta(snap) : { sources: [], counts: { selectionChars: 0, files: 0, clipboardChars: 0, pageChars: 0 }, appName: '', isBrowser: false };
+    const { resolveContextIntent } = await import('./context/prompt');
+    let key = '';
+    try {
+      key = requireApiKey(d, s.provider);
+    } catch {
+      key = process.env[`${s.provider.toUpperCase()}_API_KEY`] || '';
+    }
+    return resolveContextIntent(String(text || ''), meta, snap ? [...snap.attached] : [], false, 0,
+      key ? (prompt: string) => classifyWithModel(s, key, prompt, new AbortController().signal) : undefined);
+  });
 }
 
 /** Popup visibility: Esc-hide requests, session pin state. */
 function registerPopupIpc(): void {
   typedOn(IpcChannels.popupHide, () => {
     try { visHide('esc', { force: true }); } catch { /* window gone */ }
+    try { clearContextSnapshot(); } catch { /* noop */ }
   });
   typedHandle(IpcChannels.pinGet, vNone, () => ({ pinned: visIsPinned() }));
   typedHandle(IpcChannels.pinToggle, vNone, () => {

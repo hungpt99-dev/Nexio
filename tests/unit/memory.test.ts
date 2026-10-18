@@ -17,6 +17,7 @@ import {
   importMemories,
   listMemories,
   markUsed,
+  nameClash,
   purgeExpired,
   saveMemory,
   searchMemories,
@@ -285,6 +286,17 @@ describe('store: CRUD + caps', () => {
     const r = saveMemory(db, { kind: 'fact', text: 'Your name is Bob', scope: { type: 'global' }, source: 'user_said' });
     expect(r.status).toBe('conflict');
     db.close();
+  });
+  it('nameClash: name-slot switches clash, distinct multi-slot facts do not', () => {
+    // my/your template switch with multi-token names (e2e R shape).
+    expect(nameClash('My name is Someone Else', 'Your name is Pham Thanh Hung')).toBe(true);
+    expect(nameClash('Your name is Ann', 'Your name is Bob')).toBe(true);
+    // distinct facts sharing two content words are not one slot change.
+    expect(nameClash('invoice template april issued', 'invoice template june paid')).toBe(false);
+    expect(nameClash('receipt april filed cabinet office', 'receipt june filed drawer home')).toBe(false);
+    // identical text and pure elaborations never clash.
+    expect(nameClash('Your name is Ann', 'Your name is Ann')).toBe(false);
+    expect(nameClash('cheese', 'cheese')).toBe(false);
   });
   it('enforces the cap instead of dropping', () => {
     const db = openTestDb();

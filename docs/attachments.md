@@ -88,3 +88,11 @@ switch model), "Reference only" (muted, macros/encrypted only),
 "Macros" (warn), "Encrypted" (muted), "Empty file", "May contain
 secrets" (existing). Rejected files are never chips. Same pipeline on
 Windows and macOS, for drop, paste and picker.
+
+## Context clipboard bridge
+
+Context awareness reuses this pipeline at the edges: clipboard **images**
+follow the image path (EXIF stripped, size-capped) when attached, and
+clipboard **files** become file references resolved through the same
+allowed-roots checks. Concealed pasteboard content (password managers) is
+never read — see `docs/context-awareness.md`.

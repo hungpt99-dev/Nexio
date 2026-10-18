@@ -8,6 +8,8 @@ export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
   createdAt: number;
+  /** Context chip metadata only (sources attached at send; never contents). */
+  ctx?: { attached: string[] };
   /** Ask/Do mode the turn was sent in (dividers derive from this; absent on legacy rows). */
   mode?: 'ask' | 'do';
   /** Slash template trigger without the slash (e.g. 'translate'); args stay separate. */
@@ -144,6 +146,53 @@ export interface Settings {
   taskNotifications?: boolean;
   /** Prune terminal tasks/runs older than N days (default 30). */
   taskPruneDays?: number;
+  /** Master switch for zero-config web search (default true; consent is per backend). */
+  webAllow?: boolean;
+  /** Ask before each search in Do mode (approval card); Ask mode shows an inline confirm. Default false. */
+  webAskBefore?: boolean;
+  /** Store search queries in the run log (default false — never log full queries at info level). */
+  webSaveQueries?: boolean;
+  /** Per-backend consent: 'native:anthropic' | 'native:gemini' | 'hosted:duckduckgo'. */
+  webConsent?: Record<string, boolean>;
+  /** Extra hosts allowed to bypass SSRF protection (user allow-list). */
+  webAllowlist?: string[];
+  /** Master switch: use what I'm looking at (default true after one-time notice). */
+  contextEnabled?: boolean;
+  /** Auto-attach mode: 'all' (selection+files, default) | 'ask' | 'off'. */
+  contextAutoAttach?: 'all' | 'ask' | 'off';
+  /** Per-source toggles (default all true). */
+  contextSources?: { selection?: boolean; files?: boolean; folder?: boolean; clipboard?: boolean; page?: boolean };
+  /** Use copy fallback (Ctrl/Cmd+C) for apps that don't share selection (default false). */
+  contextCopyFallback?: boolean;
+  /** Apps never captured: exe/bundle-id/name/title patterns (structure-based). */
+  contextDenyList?: string[];
+  /** One-time context explanation shown (default false). */
+  contextNoticeDismissed?: boolean;
+  /** Log file names (not just hashes) in run logs (default false). */
+  contextSaveFileNames?: boolean;
+}
+
+/** Context snapshot views (main -> renderer; labels only, content capped for preview). */
+export type ContextSourceName = 'selection' | 'files' | 'folder' | 'clipboard' | 'page' | 'screenshot';
+export interface ContextSourceView {
+  source: ContextSourceName;
+  /** 'available' | 'unavailable:<reason>' | 'denied' | 'skipped:<reason>'. */
+  state: string;
+  attached: boolean;
+  /** Chip label (counts/domain/app — never full content). */
+  label: string;
+  /** Short safe detail for tooltips. */
+  detail?: string;
+  /** Capped preview for the in-panel preview only (never sent unless attached). */
+  preview?: string;
+}
+export interface ContextSnapshotView {
+  id: string;
+  app: { name: string; windowTitle: string; isBrowser: boolean };
+  sources: ContextSourceName[];
+  states: Record<string, string>;
+  views: ContextSourceView[];
+  expiresInMs: number;
 }
 
 /** Long-term memory kinds (main + renderer safe). */

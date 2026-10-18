@@ -8,7 +8,7 @@ const workflows = [{ trigger: '/email-reply', label: 'Email', description: 'w', 
 describe('slash registry', () => {
   it('merges builtin+prompt+workflow without dupes', () => {
     const reg = buildRegistry({ prompts, workflows });
-    expect(reg.length).toBe(18 + 2); // 18 builtins (/help /new /clear /model /history /settings /log /extensions /memory /remember /forget /incognito /spawn /queue /tasks /cancel /clear-queue /pin)
+    expect(reg.length).toBe(22 + 2); // 22 builtins (/help /new /clear /model /history /settings /log /extensions /memory /remember /forget /incognito /spawn /queue /tasks /cancel /clear-queue /pin /search /context /clip /sel)
     expect(reg[0].trigger).toBe('/help');
   });
   it('exact beats prefix beats fuzzy', () => {

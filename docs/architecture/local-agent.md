@@ -41,17 +41,22 @@ No external agent CLI is wrapped. Chat mode is untouched.
 ## Tools (`src/main/agent/tools/`)
 
 Read: `fs_search fs_read fs_list apps_list clipboard_read web_search
-web_fetch attachment_list attachment_read`. Write: `app_open clipboard_write fs_write fs_move fs_copy
+web_fetch attachment_list attachment_read context_get context_status`. Write: `app_open clipboard_write fs_write fs_move fs_copy
 fs_trash` (trash only, never delete). Destructive: `shell_run`.
 
 Every tool carries an explicit `askSafe` flag (default `false`; new tools are
 blocked in Ask until opted in). `askSafe: true` only for the read tools above
-plus `skill_load` (instructions only); `web_search`/`web_fetch` only run in Ask
-when configured. Writes, `app_open` and `shell_run` are `askSafe: false`.
+plus `skill_load` (instructions only); `web_search`/`web_fetch` are offered
+in Ask and Do only when the resolver reports `available` (structured `webSearch`
+state each run: `available | needs_consent | unavailable:disabled`,
+see `src/main/web/manager.ts` and `docs/web-search.md`). Writes, `app_open`
+and `shell_run` are `askSafe: false`.
 
 | Tool | Risk | askSafe | Notes |
 |---|---|---|---|
 | `memory_search` | read | true | ids + capped text |
+| `context_get` | read | true | more of an ATTACHED source only; never captures new data |
+| `context_status` | read | true | sources and states, no contents |
 | `memory_save` | write | false | Ask-blocked as a tool; Ask saves only via the confirmation row/card path |
 | `memory_update` | write | false | same rules as save |
 | `memory_forget` | write | false | multi-delete lists items on the card |

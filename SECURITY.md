@@ -158,7 +158,54 @@
   lock waits (paths only), and terminal states land in per-task run logs.
   Notifications carry titles, never contents. See `docs/tasks.md`.
 
+## Context awareness (untrusted content; capture only on the user's hotkey)
+
+- Capture runs only at hotkey press against the recorded external window,
+  on-device, visible to the user (chips), never sent until the user sends,
+  never in the background. Snapshots live in memory only (60 s expiry,
+  deleted on hide/Incognito/quit); logs carry source names, counts, sizes
+  and SHA-256 — never content or full paths.
+- Selected text, page text, clipboard text, file names and paths are
+  UNTRUSTED DATA: delimited `<user_context>` / `<context_*>` blocks, no
+  instruction authority, cannot grant approvals or trigger memory writes,
+  task/subtask creation, web fetches or tool calls without the normal
+  approval. A write/destructive call following attached context shows
+  "Requested after reading <selection/clipboard/page/file name>".
+- Never reads password fields (UIA `IsPassword`, `AXSecureTextField`) or
+  deny-listed apps (password managers et al.); concealed clipboard formats
+  (Windows exclusion formats, macOS concealed/transient pasteboard types)
+  are skipped before any content is read. Secrets-scanner hits and
+  credential-like file names mark the chip and require confirmation.
+- No file contents are read by capture (references only); reads go through
+  the normal tools with allowed-roots checks, in Ask (read-only) and Do.
+  See `docs/context-awareness.md`.
+
 ## Reporting a vulnerability
 
 Report via GitHub private security advisory. Do not open a public GitHub Issue.
 Do not include keys, tokens, or personal data in reports.
+
+## Web search (untrusted content, SSRF, privacy)
+
+- Web search needs no configuration and no keys: the resolver picks
+  model-native search, then keyless hosted (DuckDuckGo), then honest
+  `unavailable`. Tools are hidden unless the state is `available`; every run
+  is told `available | needs_consent | unavailable:disabled`. Consent is per
+  backend (onboarding line + inline notice naming the backend); no silent
+  third-party fallback.
+- Results are UNTRUSTED data: each page/snippet ships in delimited blocks
+  (`<web_page>` / `<web_result>` with the source URL). Instructions inside
+  have no authority — they cannot trigger tools, approvals, memory writes
+  or subtasks. A write after web content forces an approval card marked
+  `Requested after reading <domain>`.
+- SSRF: localhost, link-local, private and metadata IPs are blocked (DNS
+  resolved first and re-checked after each redirect, max 5); only
+  http/https, no embedded credentials, no `file:`/`data:`/`ftp:` schemes.
+  No cookies or local credentials leave the machine; fixed `Nexio/1.0`
+  user agent. Per-run caps (8 searches, 6 fetches) and a 5-minute
+  query/URL-only cache.
+- Privacy: queries/URLs must not carry file contents, paths, secrets,
+  memory or attachment text without explicit user confirmation (inline
+  one-line confirm after a local read). Tracking params are stripped;
+  the UI fetches no favicons/images. Queries are logged only when the
+  user enables **Save search queries**. See `docs/web-search.md`.

@@ -68,6 +68,11 @@ const api = {
   listModels: (provider: string, baseUrl?: string) =>
     invoke(IpcChannels.listModels, provider, baseUrl),
   resetProviderFixes: () => invoke(IpcChannels.resetProviderFixes),
+  webTest: () => invoke(IpcChannels.webTest),
+  webStatus: () => invoke(IpcChannels.webStatus),
+  webConsent: (backend: string, allow?: boolean) => invoke(IpcChannels.webConsent, backend, allow),
+  webSearch: (query: string) => invoke(IpcChannels.webSearch, query),
+  webFetch: (url: string) => invoke(IpcChannels.webFetch, url),
   listConversations: () => invoke(IpcChannels.listConversations),
   createConversation: (title?: string) => invoke(IpcChannels.createConversation, title),
   getMessages: (id: string) => invoke(IpcChannels.getMessages, id),
@@ -122,12 +127,25 @@ const api = {
     invoke(IpcChannels.attachClassify, input) as Promise<{ verdict: string; reason?: string }>,
   attachClear: (runId: string) => invoke(IpcChannels.attachClear, runId) as Promise<boolean>,
   tasks: (a: TaskAction) => invoke(IpcChannels.tasks, a) as Promise<unknown>,
+  contextRefresh: () => invoke(IpcChannels.contextRefresh),
+  contextAttach: (source: string) => invoke(IpcChannels.contextAttach, source),
+  contextDetach: (source: string) => invoke(IpcChannels.contextDetach, source),
+  contextExclude: (id: string, excluded: boolean) => invoke(IpcChannels.contextExclude, id, excluded),
+  contextStatus: () => invoke(IpcChannels.contextStatus),
+  contextRoute: (text: string) => invoke(IpcChannels.contextRoute, text),
+  onContextEvent: (cb: (ev: { kind: string } & Record<string, unknown>) => void) => {
+    const fn = (_e: unknown, data: { kind: string } & Record<string, unknown>) => cb(data);
+    ipcRenderer.on(IpcChannels.contextEvent, fn);
+    return () => ipcRenderer.removeListener(IpcChannels.contextEvent, fn);
+  },
   onTasksChanged: (cb: () => void) => {
     const fn = () => cb();
     ipcRenderer.on(IpcChannels.tasksChanged, fn);
     return () => ipcRenderer.removeListener(IpcChannels.tasksChanged, fn);
   },
   reveal: (dir: string) => invoke(IpcChannels.reveal, dir) as Promise<boolean>,
+  openExternal: (url: string) => invoke(IpcChannels.openExternal, url) as Promise<boolean>,
+  openSystemSettings: (pane: string) => invoke(IpcChannels.openSystemSettings, pane) as Promise<boolean>,
   runs: () => invoke(IpcChannels.runs),
   onRouteStatus: (cb: (ev: { id: string; status: 'doing' | 'answering' }) => void) => {
     const fn = (_e: unknown, data: { id: string; status: 'doing' | 'answering' }) => cb(data);

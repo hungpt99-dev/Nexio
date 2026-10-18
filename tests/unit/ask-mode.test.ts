@@ -82,6 +82,7 @@ function askState(over: Partial<ToolExecState> = {}): ToolExecState {
 const ASK_SAFE_NAMES = new Set([
   'fs_search', 'fs_read', 'fs_list', 'apps_list', 'clipboard_read',
   'attachment_list', 'attachment_read', 'skill_load', 'web_search', 'web_fetch',
+  'context_get', 'context_status',
 ]);
 
 describe('ask policy: explicit askSafe flags', () => {
@@ -255,6 +256,8 @@ describe('ask injection + secrets', () => {
   afterEach(() => { globalThis.fetch = realFetch; });
 
   it('a malicious file cannot trigger a write or a web request', async () => {
+    // Consented backend: the web tool is offered, so the read-then-send
+    // guard (not the availability filter) is what stops the call.
     let webHit = 0;
     globalThis.fetch = (async () => { webHit++; return new Response('{}', { status: 200 }); }) as unknown as typeof fetch;
     const dir = tmpRoot();
@@ -267,6 +270,7 @@ describe('ask injection + secrets', () => {
     await runAgent('read then act', {
       provider: 'openai', apiKey: 'k', model: 'm', cwd: dir, history: [],
       allowedRoots: [dir], mode: 'ask',
+      webSettings: { provider: 'openai', model: 'm', theme: 'light', hotkey: '', mode: 'chat', webAllow: true, webConsent: { 'hosted:duckduckgo': true } } as never,
       tools: [read, fakeTool({
         name: 'web_search', risk: 'read', askSafe: true,
         inputSchema: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] },
@@ -319,6 +323,7 @@ describe('ask read tools: physically incapable of writing (layer c)', () => {
     'src/main/agent/tools/attachment_tools.ts',
     'src/main/agent/tools/web_search.ts',
     'src/main/agent/tools/web_fetch.ts',
+    'src/main/agent/tools/context.ts',
     'src/main/extensions/skills.ts',
   ];
   it('no shell, no writes, no temp-file side effects', () => {

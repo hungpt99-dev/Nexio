@@ -1,0 +1,293 @@
+
+> nexio@0.1.0 test
+> vitest run
+
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /Users/phamthanhhung/Desktop/MyProject/Nexio
+
+ ✓ tests/unit/view-single.test.ts (29 tests) 20ms
+stdout | tests/unit/providers-conformance.test.ts > retry > retries unsupported params once and caches the fix per provider/baseUrl/model
+[provider-retry] t retry-once unsupported-param params=temperature
+
+stdout | tests/unit/providers-conformance.test.ts > retry > swaps max_tokens to max_completion_tokens on 400 and succeeds
+[provider-retry] t retry-once unsupported-param params=max_completion_tokens
+
+stdout | tests/unit/providers-conformance.test.ts > retry > stops after one param retry when the second attempt also 400s
+[provider-retry] t retry-once unsupported-param params=temperature
+
+stdout | tests/unit/providers-conformance.test.ts > retry > backs off on 429 for non-streaming only (Retry-After honored), streaming throws through
+[provider-retry] t backoff 429 attempt=1 wait=18ms params=-
+
+ ✓ tests/unit/providers-conformance.test.ts (43 tests) 43ms
+ ✓ tests/unit/ask-mode.test.ts (17 tests) 31ms
+ ✓ tests/unit/tasks.test.ts (17 tests) 270ms
+(node:63983) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ tests/unit/memory.test.ts (50 tests | 3 failed) 90ms
+   × loop: memory injection rule + Ask policy > forget-many lists items on the confirmation card 7ms
+     → expected 'Forget 1 memories matching "receipt f…' to match /Forget 2 memories/
+   × store: CRUD + caps > a changed name conflicts with the stored one 2ms
+     → expected 'saved' to be 'conflict' // Object.is equality
+   × policy: memory tools are read/write split, Ask-safe only for search > forget-query counts matches for the confirmation card 1ms
+     → expected 1 to be 2 // Object.is equality
+ ✓ tests/unit/attachments-documents.test.ts (66 tests) 279ms
+ ✓ tests/unit/attachments.test.ts (33 tests) 49ms
+(node:63988) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+stderr | tests/unit/memory-e2e.test.ts
+[Nexio] stop hotkey CommandOrControl+Alt+Escape taken
+
+stdout | tests/unit/dialogs.test.ts > shouldSuppressBlur > keeps suppressing briefly after close (grace), then releases
+[vis] show reason=dialog dead-window
+[vis] show reason=dialog dead-window
+
+ ❯ tests/unit/memory-e2e.test.ts (18 tests | 1 failed) 162ms
+   × memory recall: names across conversations > R. name change surfaces the replace conflict 7ms
+     → expected undefined to be 'Your name is Pham Thanh Hung' // Object.is equality
+(node:63984) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ tests/unit/conversation-ui.test.ts (19 tests) 30ms
+(node:64004) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+stderr | tests/unit/conversation.test.ts
+[Nexio] stop hotkey CommandOrControl+Alt+Escape taken
+
+ ❯ tests/unit/conversation.test.ts (13 tests | 1 failed) 51ms
+   × unknown stored provider ids are not configured, never substituted > missing key yields the setup message with Open Settings, no answer, no spinner 4ms
+     → expected '' to match object { ok: false, action: 'open-settings' }
+stdout | tests/unit/dialogs.test.ts > pickFolder / pickFile > cancel resolves null and refocuses (focus input IPC, no reshow when visible)
+[vis] show reason=dialog dead-window
+
+stdout | tests/unit/dialogs.test.ts > pickFolder / pickFile > reshows a hidden popup on the refocus tick
+[vis] show reason=dialog dead-window
+
+stdout | tests/unit/dialogs.test.ts > pickFolder / pickFile > returns the realpath and seeds defaultPath from the last pick
+[vis] show reason=dialog dead-window
+[vis] show reason=dialog dead-window
+
+stdout | tests/unit/dialogs.test.ts > pickFolder / pickFile > pickFile returns the file and remembers its dir
+[vis] show reason=dialog dead-window
+
+ ✓ tests/unit/attachments-native.test.ts (21 tests) 29ms
+stdout | tests/unit/dialogs.test.ts > pickFolder / pickFile > lowers and restores alwaysOnTop on macOS
+[vis] show reason=dialog dead-window
+
+stdout | tests/unit/dialogs.test.ts > pickAttachFiles > cancel resolves [] and never rejects (stubbed none)
+[vis] show reason=dialog dead-window
+
+stdout | tests/unit/dialogs.test.ts > pickAttachFiles > remembers metadata (lastUsedDir) and seeds the next open
+[vis] show reason=dialog dead-window
+[vis] show reason=dialog dead-window
+[vis] show reason=dialog dead-window
+
+ ✓ tests/unit/dialogs.test.ts (28 tests) 381ms
+   ✓ shouldSuppressBlur > keeps suppressing briefly after close (grace), then releases 353ms
+ ✓ tests/unit/web-honesty.test.ts (13 tests) 25ms
+(node:64091) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+stderr | tests/unit/secrets-app-error.test.ts > secrets module: envelope, never-throw reads, loud writes > missing -> missing; getSecret-style read never throws on undecryptable
+[Nexio] secret 'apikey:openai' unreadable: undecryptable (backend darwin)
+[Nexio] secret 'apikey:openai' unreadable: undecryptable (backend darwin)
+
+stderr | tests/unit/secrets-app-error.test.ts > secrets module: envelope, never-throw reads, loud writes > requireApiKey: missing/unreadable/ok
+[Nexio] secret 'apikey:openai' unreadable: undecryptable (backend darwin)
+
+stderr | tests/unit/secrets-app-error.test.ts > reentry scan: unreadable blobs marked, readable unmarked, idempotent > unreadable secrets are marked needs_reentry, nothing deleted
+[Nexio] secret 'apikey:gemini' unreadable: undecryptable (backend darwin)
+[Nexio] secret 'apikey:openai' unreadable: undecryptable (backend darwin)
+[Nexio] secret 'apikey:gemini' unreadable: undecryptable (backend darwin)
+[Nexio] secret 'apikey:openai' unreadable: undecryptable (backend darwin)
+
+ ✓ tests/unit/attachments-encoding.test.ts (25 tests) 26ms
+ ✓ tests/unit/answer-actions.test.ts (16 tests) 14ms
+ ✓ tests/unit/secrets-app-error.test.ts (16 tests) 111ms
+ ✓ tests/unit/run-feedback.test.ts (11 tests) 16ms
+ ✓ tests/unit/window-visibility.test.ts (12 tests) 14ms
+ ✓ tests/unit/suggest-empty.test.ts (19 tests) 68ms
+ ✓ tests/unit/provider-test-flow.test.ts (12 tests) 18ms
+(node:64431) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ tests/unit/conversation-modes.test.ts (10 tests) 32ms
+ ✓ tests/unit/tasks-ui.test.ts (12 tests) 17ms
+ ✓ tests/unit/onboard-apikey.test.ts (13 tests) 37ms
+ ✓ tests/unit/web-layer.test.ts (34 tests) 1528ms
+   ✓ availability states + honest messages > no key fields or key code paths: hosted works with empty key 824ms
+   ✓ ask-before-searching > NEEDS_CONFIRM when on; skipped for explicit actions 572ms
+ ✓ tests/unit/tasks-safety.test.ts (6 tests) 30ms
+ ✓ tests/unit/agent-local.test.ts (17 tests) 1132ms
+   ✓ shell_run: abort kills the child > aborting resolves fast with a stopped marker 1110ms
+ ✓ tests/unit/i18n-global.test.ts (15 tests) 36ms
+ ✓ tests/unit/undo.test.ts (10 tests) 12ms
+stderr | tests/unit/db.test.ts > db + templates > stale-versioned DB file is renamed aside and replaced fresh (reset, never migrate)
+[Nexio] schema v0 != v2; moved stale DB aside (nexio.db.old-1792304169604)
+
+(node:65356) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ tests/unit/db.test.ts (7 tests) 8ms
+ ✓ tests/unit/follow-bottom.test.ts (9 tests) 10ms
+ ✓ tests/unit/context-e2e.test.ts (5 tests) 17ms
+ ✓ tests/unit/extensions.test.ts (43 tests) 1724ms
+   ✓ hooks: exit codes and never-auto-approve > exit 2 blocks with stderr as the reason 1154ms
+ ✓ tests/unit/agent-integration.test.ts (11 tests) 1403ms
+   ✓ integration: abort during approval cancels the run > aborted wait rejects and nothing executes 303ms
+   ✓ integration: always-allow persists and reuses > second identical shell call auto-runs 1071ms
+(node:65372) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+stderr | tests/unit/slash-commands.test.ts
+[Nexio] stop hotkey CommandOrControl+Alt+Escape taken
+
+ ✓ tests/unit/slash-commands.test.ts (3 tests) 29ms
+ ✓ tests/unit/context-collectors.test.ts (8 tests) 438ms
+   ✓ collectors with mocked platform > refreshContext: async collectors, per-source budgets, excludes self, deny-list yields no content 402ms
+ ✓ tests/unit/context-ui.test.ts (12 tests) 13ms
+ ✓ tests/unit/tasks-subtasks.test.ts (4 tests) 5ms
+ ✓ tests/unit/spacing.test.ts (9 tests) 7ms
+ ✓ tests/unit/task-routing.test.ts (6 tests) 6ms
+ ✓ tests/unit/context-tools.test.ts (6 tests) 6ms
+ ✓ tests/unit/context-snapshot.test.ts (10 tests) 4ms
+ ✓ tests/unit/intent.test.ts (9 tests) 2ms
+ ✓ tests/unit/assets.test.ts (4 tests) 7ms
+ ✓ tests/unit/slash.test.ts (11 tests) 12ms
+ ✓ tests/unit/attach-shared.test.ts (6 tests) 14ms
+(node:65634) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ tests/unit/tasks-store.test.ts (4 tests) 4ms
+ ✓ tests/unit/context-router.test.ts (6 tests) 2ms
+ ✓ tests/unit/workflow.test.ts (5 tests) 3ms
+stderr | tests/unit/memory-ipc.test.ts
+[Nexio] stop hotkey CommandOrControl+Alt+Escape taken
+
+(node:65590) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ tests/unit/memory-ipc.test.ts (6 tests) 44ms
+(node:65615) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+stderr | tests/unit/ipc-handlers.test.ts
+[Nexio] stop hotkey CommandOrControl+Alt+Escape taken
+
+ ✓ tests/unit/ipc-handlers.test.ts (8 tests) 6ms
+ ✓ tests/unit/pin.test.ts (5 tests) 5ms
+ ✓ tests/unit/router.test.ts (5 tests) 21ms
+(node:65683) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ tests/unit/ipc-contract.test.ts (5 tests) 3ms
+ ✓ tests/unit/slash-scope.test.ts (3 tests) 2ms
+ ✓ tests/unit/providers.test.ts (7 tests) 19ms
+ ✓ tests/unit/tab.test.ts (3 tests) 3ms
+ ✓ tests/unit/settings.test.ts (4 tests) 5ms
+(node:65730) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ tests/unit/focus.test.ts (3 tests) 2ms
+ ✓ tests/unit/ipc-no-literals.test.ts (1 test) 15ms
+ ✓ tests/unit/approval.test.ts (3 tests) 1ms
+(node:65756) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ tests/unit/secrets.test.ts (2 tests) 8ms
+ ✓ tests/unit/platform.test.ts (25 tests | 1 skipped) 2953ms
+   ✓ integration (native host only) > shell timeout kills at the deadline 2631ms
+   ✓ integration (native host only) > abort kills the run fast with a stopped marker 303ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/unit/conversation.test.ts > unknown stored provider ids are not configured, never substituted > missing key yields the setup message with Open Settings, no answer, no spinner
+AssertionError: expected '' to match object { ok: false, action: 'open-settings' }
+
+- Expected: 
+Object {
+  "action": "open-settings",
+  "ok": false,
+}
+
++ Received: 
+""
+
+ ❯ tests/unit/conversation.test.ts:291:19
+    289|       // no stored key and no helper top-up: the run must fail before …
+    290|       const out = await listenerFor(IpcChannels.send)({ sender }, conv…
+    291|       expect(out).toMatchObject({ ok: false, action: 'open-settings' }…
+       |                   ^
+    292|       expect(String((out as any).message)).toMatch(/No API key is set/…
+    293|       expect(bodies).toHaveLength(0);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ FAIL  tests/unit/memory-e2e.test.ts > memory recall: names across conversations > R. name change surfaces the replace conflict
+AssertionError: expected undefined to be 'Your name is Pham Thanh Hung' // Object.is equality
+
+- Expected: 
+"Your name is Pham Thanh Hung"
+
++ Received: 
+undefined
+
+ ❯ tests/unit/memory-e2e.test.ts:415:47
+    413|     await send('remember that my name is Someone Else', { mode: 'chat'…
+    414|     const conflict = memEvents().find((e) => e.event.type === 'conflic…
+    415|     expect(conflict?.event.conflicts[0].text).toBe('Your name is Pham …
+       |                                               ^
+    416|   });
+    417| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+ FAIL  tests/unit/memory.test.ts > loop: memory injection rule + Ask policy > forget-many lists items on the confirmation card
+AssertionError: expected 'Forget 1 memories matching "receipt f…' to match /Forget 2 memories/
+
+- Expected: 
+/Forget 2 memories/
+
++ Received: 
+"Forget 1 memories matching \"receipt filed\":
+- mem-mvdfmix9-bkmb [fact] (global) receipt april filed cabinet office"
+
+ ❯ tests/unit/memory.test.ts:159:61
+    157|     });
+    158|     const req = events.find((e) => e.type === 'approval_request');
+    159|     expect(req?.type === 'approval_request' && req.summary).toMatch(/F…
+       |                                                             ^
+    160|     expect(countMemories(db)).toBe(0);
+    161|     db.close();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
+
+ FAIL  tests/unit/memory.test.ts > store: CRUD + caps > a changed name conflicts with the stored one
+AssertionError: expected 'saved' to be 'conflict' // Object.is equality
+
+Expected: "conflict"
+Received: "saved"
+
+ ❯ tests/unit/memory.test.ts:286:22
+    284|     saveMemory(db, { kind: 'fact', text: 'Your name is Ann', scope: { …
+    285|     const r = saveMemory(db, { kind: 'fact', text: 'Your name is Bob',…
+    286|     expect(r.status).toBe('conflict');
+       |                      ^
+    287|     db.close();
+    288|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯
+
+ FAIL  tests/unit/memory.test.ts > policy: memory tools are read/write split, Ask-safe only for search > forget-query counts matches for the confirmation card
+AssertionError: expected 1 to be 2 // Object.is equality
+
+- Expected
++ Received
+
+- 2
++ 1
+
+ ❯ tests/unit/memory.test.ts:667:66
+    665|     saveMemory(db, { kind: 'fact', text: 'invoice template april issue…
+    666|     saveMemory(db, { kind: 'fact', text: 'invoice template june paid',…
+    667|     expect(memoryForgetCount(db, { query: 'invoice template' })).toBe(…
+       |                                                                  ^
+    668|     expect(memoryForgetCount(db, { id: 'x' })).toBe(1);
+    669|     db.close();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/5]⎯
+
+ Test Files  3 failed | 59 passed (62)
+      Tests  5 failed | 847 passed | 1 skipped (853)
+   Start at  13:16:07
+   Duration  4.24s (transform 1.41s, setup 1.47s, collect 5.15s, tests 11.35s, environment 10ms, prepare 2.56s)
+

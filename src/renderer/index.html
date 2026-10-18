@@ -26,6 +26,7 @@
     <div id="attach-tray" class="hidden" role="list" aria-label="Attachments" tabindex="0"></div>
     <div id="suggest" class="scroll hidden" role="listbox" aria-label="Suggestions"></div>
     <div id="task-choice" class="hidden" role="group"></div>
+    <div id="ctx-choice" class="hidden" role="group" aria-label="Context choice"></div>
     <div class="view scroll hidden" id="view">
       <div id="palette" class="scroll hidden" role="listbox" aria-label="Commands"></div>
       <div id="run" class="hidden">
@@ -66,6 +67,19 @@
             <ul id="ask-mcp" class="agent-list"></ul>
           </div>
         </div>
+        <div class="set-section">
+          <div class="set-title">Web search</div>
+          <div class="group">
+            <label class="fld check"><span class="switch-tx"><span class="flab">Allow web search</span><span class="switch-desc">No setup needed; the best available backend is used</span></span><input id="set-weballow" type="checkbox" role="switch" /><span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span></label>
+            <label class="fld check"><span class="switch-tx"><span class="flab">Ask before searching</span><span class="switch-desc">Approve each search in Do mode; inline confirm in Ask</span></span><input id="set-webaskbefore" type="checkbox" role="switch" /><span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span></label>
+            <label class="fld check"><span class="switch-tx"><span class="flab">Save search queries in run log</span><span class="switch-desc">Off keeps queries out of logs</span></span><input id="set-websave" type="checkbox" role="switch" /><span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span></label>
+            <div class="note" id="web-status-line" role="status"></div>
+            <div class="row test-row">
+              <button id="btn-test-web" class="btn">Test web search</button>
+              <span id="web-status" role="status"></span>
+            </div>
+          </div>
+        </div>
         <label class="fld check"><span class="switch-tx"><span class="flab">Require approval for file writes</span><span class="switch-desc">Ask before writing files</span></span><input id="set-reqapprove" type="checkbox" role="switch" /><span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span></label>
         <div class="set-section">
           <div class="set-title">Memory</div>
@@ -82,6 +96,21 @@
           <div class="row"><button id="btn-mem-forgetall" class="btn">Forget everything…</button></div>
           <div id="mem-forgetall-confirm" class="hidden"><label class="fld"><span class="flab">Type "forget everything" to confirm</span><input id="mem-forgetall-input" class="mono" autocomplete="off" /></label><div class="row"><button id="btn-mem-forgetall-go" class="btn">Delete all memories</button></div></div>
           <div id="mem-import-box"><label class="fld"><span class="flab">Import JSON</span><textarea id="mem-import-text" class="mono" rows="3" placeholder='{"version":1,"memories":[…]}'></textarea></label><div class="row"><button id="btn-mem-preview" class="btn">Preview</button><button id="btn-mem-import" class="btn hidden">Import</button></div><div class="note" id="mem-import-status" role="status"></div></div>
+        </div>
+        <div class="set-section">
+          <div class="set-title">Context</div>
+          <div class="group">
+            <label class="fld check"><span class="switch-tx"><span class="flab">Use what I'm looking at</span><span class="switch-desc">Selection, files, folder, clipboard, page from the app you left</span></span><input id="set-ctx" type="checkbox" role="switch" /><span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span></label>
+            <div class="fld"><span class="flab">Auto-attach</span><div class="seg" id="set-ctxauto-seg" role="group" aria-label="Auto-attach mode">
+              <button data-ctxauto="all" class="on">Selected text and files</button><button data-ctxauto="ask">Ask each time</button><button data-ctxauto="off">Off</button>
+            </div></div>
+            <div class="fld"><span class="flab">Sources</span><div class="chip-group" id="set-ctx-src" role="group" aria-label="Context sources"></div></div>
+            <label class="fld check"><span class="switch-tx"><span class="flab">Use copy fallback for apps that don't share</span><span class="switch-desc">Presses Ctrl/Cmd+C for you, restores the clipboard after (off by default)</span></span><input id="set-ctxcopy" type="checkbox" role="switch" /><span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span></label>
+            <label class="fld"><span class="flab">Never use these apps (one per line)</span><textarea id="set-ctxdeny" class="mono" rows="3" placeholder="1Password&#10;SecretApp"></textarea></label>
+            <label class="fld check"><span class="switch-tx"><span class="flab">Save file names in logs</span><span class="switch-desc">Off logs hashes only</span></span><input id="set-ctxnames" type="checkbox" role="switch" /><span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span></label>
+            <div class="note hidden" id="ctx-perm" role="status"></div>
+            <div class="row"><button id="btn-ctx-perm" class="btn hidden">Open System Settings</button></div>
+          </div>
         </div>
         <div class="set-section">
           <div class="set-title" data-i18n="settings.tasks">Tasks</div>

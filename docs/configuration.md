@@ -37,7 +37,19 @@ Settings live in the app SQLite DB (`getSettings`/`updateSettings` in
 | `taskSubmitDefault` | `'ask'` | Saved while-busy default: `ask` / `spawn` / `queue` / `replace`. |
 | `taskResume` | `'ask'` | Waiting tasks on start: `ask` / `resume` / `discard`. |
 | `taskNotifications` | `true` | Approval + finished-family notifications. |
+| `contextEnabled` | `true` | Master switch: use what I'm looking at (after one-time notice). |
+| `contextAutoAttach` | `'all'` | `'all'` (selection+files) | `'ask'` (one-tap choice) | `'off'`. |
+| `contextSources` | `{}` | Per-source toggles (selection/files/folder/clipboard/page; absent = on). |
+| `contextCopyFallback` | `false` | Ctrl/Cmd+C fallback for apps that don't share selection (restores clipboard). |
+| `contextDenyList` | `[]` | Apps never captured (exe/bundle/name/title substrings). |
+| `contextNoticeDismissed` | `false` | One-time explanation shown. |
+| `contextSaveFileNames` | `false` | Log file names (off = hashes only). |
 | `taskPruneDays` | `30` | Prune terminal tasks/runs older than N days (1–3650). |
+| `webAllow` | `true` | Master switch for zero-config web search (no setup needed). |
+| `webAskBefore` | `false` | Ask before each search (approval card in Do, inline confirm in Ask). |
+| `webSaveQueries` | `false` | Store search queries in the run log (off = never logged in full). |
+| `webConsent` | `{}` | Per-backend consent: `native:anthropic` / `native:gemini` / `hosted:duckduckgo`. |
+| `webAllowlist` | `[]` | Extra hosts allowed to bypass SSRF protection. |
 | `sendTemperature` | `true` | Custom provider only: send `temperature`. Off for strict local servers. |
 | `compatibleImages` | `auto` | Custom provider only: image support `auto` (probe) / `on` / `off`. Off holds images back with the non-vision notice. |
 | `localTextFallback` | `false` | Extract Office/doc text locally when the provider can't read it (chip + sent text labelled "text extracted locally"). Off refuses with an unsupported notice. |

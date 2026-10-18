@@ -12,3 +12,4 @@
 - `i18n.md` — languages, locales, RTL, fonts, adding a language.
 - `adr/0006-local-memory.md` — why local SQLite + FTS first, embeddings optional.
 - `attachments.md` — detection, policy table, extraction, limits.
+- `web-search.md` — optional web search: providers, setup, privacy, limits, SSRF rules, honest states.

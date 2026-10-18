@@ -1,4 +1,6 @@
 import type {
+  ContextSnapshotView,
+  ContextSourceView,
   ChatMessage,
   Conversation,
   ExtAction,
@@ -25,6 +27,17 @@ export const IpcChannels = {
   isEncryptionAvailable: 'nexio:is-encryption-available',
   secretsStatus: 'nexio:secrets-status',
   testConnectivity: 'nexio:test-connectivity',
+  webTest: 'nexio:web-test',
+  webStatus: 'nexio:web-status',
+  webConsent: 'nexio:web-consent',
+  webSearch: 'nexio:web-search',
+  webFetch: 'nexio:web-fetch',
+  contextRefresh: 'nexio:context-refresh',
+  contextExclude: 'nexio:context-exclude',
+  contextAttach: 'nexio:context-attach',
+  contextDetach: 'nexio:context-detach',
+  contextStatus: 'nexio:context-status',
+  contextRoute: 'nexio:context-route',
   listModels: 'nexio:list-models',
   resetProviderFixes: 'nexio:reset-provider-fixes',
   listConversations: 'nexio:list-conversations',
@@ -61,9 +74,12 @@ export const IpcChannels = {
   pinToggle: 'nexio:pin-toggle',
   undo: 'nexio:undo',
   reveal: 'nexio:reveal',
+  openExternal: 'nexio:open-external',
+  openSystemSettings: 'nexio:open-system-settings',
   runs: 'nexio:runs',
   memory: 'nexio:memory',
   memoryEvent: 'nexio:memory-event',
+  contextEvent: 'nexio:context-event',
   locale: 'nexio:locale',
   attachPick: 'nexio:attach-pick',
   attachProcess: 'nexio:attach-process',
@@ -80,7 +96,7 @@ export type IpcChannelValue = (typeof IpcChannels)[IpcChannelKey];
 /** Fire-and-forget renderer→main (ipcMain.on). Everything else invoke is request/response. */
 export const IpcSendKeys = ['chatCancel', 'resize', 'agentStop', 'popupHide'] as const satisfies readonly IpcChannelKey[];
 /** Main→renderer pushes (sender.send); never handle/on registered. */
-export const IpcPushKeys = ['chatStream', 'agentEvent', 'ui', 'routeStatus', 'runSummary', 'popupShown', 'memoryEvent', 'tasksChanged'] as const satisfies readonly IpcChannelKey[];
+export const IpcPushKeys = ['chatStream', 'agentEvent', 'ui', 'routeStatus', 'runSummary', 'popupShown', 'memoryEvent', 'tasksChanged', 'contextEvent'] as const satisfies readonly IpcChannelKey[];
 export const IpcSendChannels = IpcSendKeys.map((k) => IpcChannels[k]);
 export const IpcPushChannels = IpcPushKeys.map((k) => IpcChannels[k]);
 const sendPush = new Set<string>([...IpcSendKeys, ...IpcPushKeys]);
@@ -175,6 +191,19 @@ export interface IpcChannelMap {
   pinToggle: { args: []; result: { pinned: boolean } };
   undo: { args: [runId: string]; result: { runId: string } };
   reveal: { args: [dir: string]; result: boolean };
+  openExternal: { args: [url: string]; result: boolean };
+  openSystemSettings: { args: [pane: string]; result: boolean };
+  webTest: { args: []; result: { ok: boolean; message: string; backend?: string; ms?: number; count?: number } };
+  webStatus: { args: []; result: { state: 'available' | 'needs_consent' | 'unavailable'; backend: string | null; name: string | null; consented: boolean; privacyUrl?: string; reason?: string; health: { backend: string; ok: boolean; at: number; detail: string } | null } };
+  webConsent: { args: [backend: string, allow?: boolean]; result: { consented: boolean } };
+  webSearch: { args: [query: string]; result: { results: Array<{ title: string; url: string; snippet: string; source: string; date?: string }>; provider: string; ms: number; reformulated?: string } };
+  webFetch: { args: [url: string]; result: { title: string; url: string; text: string; contentType: string; truncated: boolean } };
+  contextRefresh: { args: []; result: ContextSnapshotView | null };
+  contextExclude: { args: [id: string, excluded: boolean]; result: boolean };
+  contextAttach: { args: [source: string]; result: ContextSourceView | null };
+  contextDetach: { args: [source: string]; result: boolean };
+  contextStatus: { args: []; result: { sources: string[]; states: Record<string, string>; attached: string[]; expiresInMs: number } };
+  contextRoute: { args: [text: string]; result: { needsContext: string[]; deictic: boolean; ambiguity?: string[] } };
   runs: { args: []; result: Array<{ runId: string; kind: 'agent' | 'workflow'; prompt: string; outcome: string; ts: number; status: 'done' | 'error' | 'stopped'; undoable: boolean }> };
   attachPick: { args: []; result: Array<{ path: string; name: string; size: number; mime: string; previewDataUrl?: string; verdict: string; reason?: string }> };
   attachProcess: { args: [input: { runId: string; name: string; dataBase64: string }]; result: { id: string; name: string; mime: string; size: number; kind: string; width?: number; height?: number; previewDataUrl?: string; sha256: string; error?: string } };
@@ -184,6 +213,7 @@ export interface IpcChannelMap {
   tasks: { args: [a: TaskAction]; result: unknown };
   tasksChanged: { args: [{ rev: number }]; result: void };
   memoryEvent: { args: [{ runId?: string; requestId?: string; conversationId?: string; event: MemoryPush }]; result: void };
+  contextEvent: { args: [{ kind: 'snapshot' | 'source' | 'choice' | 'actions' | 'notice'; snapshot?: ContextSnapshotView; source?: string; state?: string; options?: string[]; actions?: string[]; text?: string }]; result: void };
   locale: { args: []; result: { tag: string; dir: 'ltr' | 'rtl'; dict: Record<string, unknown>; fallback: Record<string, unknown>; available: Array<{ tag: string; name: string }> } };
 }
 

@@ -6,6 +6,7 @@ import type { Settings } from '../../shared/types';
 import type { HookRunner } from '../extensions/hooks';
 import type { ContentPart } from '../ai/providers/types';
 import type { Tool } from '../agent/types';
+import { takeTaskContextCopy } from '../context/service';
 import { IpcChannels } from '../../shared/ipc-channels';
 import { Scheduler, TaskParked, newTaskId, taskTitle } from './scheduler';
 import type { SchedulerEvent } from './scheduler';
@@ -365,6 +366,7 @@ export function createUserTask(api: TaskHostApi, input: NewTaskInput): { task: T
     snapshot: {
       workingFolder: input.cwd, mode: 'do', provider: input.provider, model: input.model,
       memorySnapshotIds: memIds, attachmentIds,
+      contextSnapshot: takeTaskContextCopy(),
     },
   });
   if ('error' in r) {
@@ -406,6 +408,7 @@ export function createSubtaskRecord(api: TaskHostApi, parent: Task, input: { tit
       workingFolder: parent.snapshot.workingFolder, mode: 'do',
       provider: parent.snapshot.provider, model: parent.snapshot.model,
       memorySnapshotIds: [], attachmentIds: inherited.map((p) => p.ref.id),
+      contextSnapshot: parent.snapshot.contextSnapshot || null,
     },
   });
   if ('error' in r) {

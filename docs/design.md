@@ -59,6 +59,26 @@ Dark-background brand only — there is no light variant.
 - Ask history shows 160px thumbs/chips with a "Delete attachments" menu.
   Vision-failure notices carry a one-click "Switch model" button.
 
+## Context tray and chips
+
+- Context block sits in the attachment tray under the composer: a 12px
+  muted "Context" label with a "Detach all" ghost button, then chips in a
+  fixed order (Selection, Files, Folder, Page, Clipboard), single line
+  with ellipsis + tooltip, never wrapping the label badly (RTL safe).
+- Chip states reuse existing tokens: Attached (selected state like the
+  memory chip — `var(--selected)` background, 1px `var(--accent)` border,
+  check icon), Available (neutral, click to attach), Unavailable (muted,
+  tooltip with the reason and an action such as Open System Settings).
+- Clicking an attached chip opens an in-panel preview (text in a mono
+  read-only block; files as a list with checkboxes to exclude some; Esc
+  closes preview first, focus returns to the composer). The one-tap choice
+  (`Use: [Selected text] [3 files]`) and action rows render under the input.
+  File chips show the first 3 names and "+N more"; outside-roots files show
+  warn style with [Allow this file once]. Chips announce via the single
+  sr-only live region. Window height follows the tray (existing resize
+  logic, 560 px cap); no layout jump; single scroller; footer stays in the
+  shell.
+
 ## Answer actions
 
 - One row, never wraps: `#answer-meta` (flex, 8px gap, exactly 28px tall,

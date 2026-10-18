@@ -1,0 +1,1 @@
+SMOKE PASS | do-hello answered, run ended, footer clean | {"assistant":["hello to you too"],"steps":0,"stopVisible":false,"stopCaps":"Esc","tasksIcon":true,"terminal":true}
