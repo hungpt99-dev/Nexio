@@ -12,8 +12,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # macos-13 is x64 (Intel check); macos-latest is arm64.
-        os: [windows-latest, macos-latest, macos-13]
+        # macos-latest is arm64. macos-13 (Intel check) was dropped:
+        # GitHub retired the macos-13 runner image, so the job queued
+        # forever and blocked every run. Re-add an Intel leg when a
+        # replacement image exists.
+        os: [windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
