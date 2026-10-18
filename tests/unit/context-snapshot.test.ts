@@ -55,7 +55,7 @@ describe('snapshot lifecycle', () => {
 
 describe('auto-attach + attach/detach', () => {
   const settings = (over: Record<string, unknown> = {}) => ({
-    provider: 'openai', model: 'm', theme: 'light', hotkey: '', mode: 'chat', ...over,
+    provider: 'openai', model: 'm', hotkey: '', mode: 'chat', ...over,
   }) as never;
   it('default attaches selection + files only', () => {
     const s = beginSnapshot(APP, null);

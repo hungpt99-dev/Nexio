@@ -322,7 +322,9 @@ function memoryForTask(api: TaskHostApi, task: Task, _text: string, cwd: string)
 
 export interface NewTaskInput {
   prompt: string;
-  origin: 'user_spawn' | 'user_queue' | 'agent_subtask';
+  origin: 'user_spawn' | 'user_queue' | 'agent_subtask' | 'scheduled';
+  /** Run scope; scheduled Ask runs stay read-only. Default 'do'. */
+  runMode?: 'ask' | 'do';
   parentId?: string | null;
   priority?: 'normal' | 'high';
   title?: string;
@@ -364,7 +366,7 @@ export function createUserTask(api: TaskHostApi, input: NewTaskInput): { task: T
     ...(input.title ? { title: input.title } : {}),
     ...(input.hold ? { hold: true } : {}),
     snapshot: {
-      workingFolder: input.cwd, mode: 'do', provider: input.provider, model: input.model,
+      workingFolder: input.cwd, mode: input.runMode || 'do', provider: input.provider, model: input.model,
       memorySnapshotIds: memIds, attachmentIds,
       contextSnapshot: takeTaskContextCopy(),
     },

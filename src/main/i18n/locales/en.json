@@ -8,7 +8,6 @@
   "composer.placeholder.do": "What do you want to do?",
   "composer.placeholder.settings": "Settings",
   "composer.placeholder.attach": "Add a note, Enter to send…",
-
   "footer.tab": "switch mode",
   "footer.enter.run": "run",
   "footer.enter.send": "send",
@@ -26,21 +25,18 @@
   "footer.log": "Log",
   "footer.incognito": "Incognito",
   "footer.localHistory": "Local history on",
-
   "answer.copy": "Copy",
   "answer.copied": "Copied",
   "answer.copyCode": "Copy code block",
   "answer.followup": "Follow up",
   "answer.newchat": "New chat",
   "answer.more": "More actions",
-
   "approval.deny": "Deny",
   "approval.allowOnce": "Allow once",
   "approval.always": "Always allow…",
   "approval.exactCommand": "This exact command",
   "approval.toolInFolder": "This tool in this folder",
   "approval.failed": "Approval failed to send.",
-
   "settings.title": "Settings",
   "settings.provider": "Provider",
   "settings.custom": "Custom",
@@ -115,12 +111,10 @@
   "settings.taskNotifyDesc": "Approvals and finished families",
   "settings.taskPrune": "Prune tasks after (days)",
   "settings.taskPruneDesc": "Terminal tasks and their files",
-
   "history.title": "History",
   "history.runs": "Run Log",
   "history.ask": "Ask",
   "history.newChat": "+ New chat",
-
   "memory.title": "Memory",
   "memory.all": "All",
   "memory.preferences": "Preferences",
@@ -228,7 +222,6 @@
   "memory.textLabel": "Memory text",
   "memory.options": "Memory options",
   "memory.scopeError": "Scope must be global, an absolute folder path, app:name or project:id.",
-
   "onboard.title": "Connect your AI provider",
   "onboard.subtitle": "Bring your own key. It never leaves your device except to call the provider.",
   "onboard.apiKey": "API key",
@@ -242,7 +235,6 @@
   "onboard.keyValid": "Key valid",
   "onboard.keyInvalid": "Invalid key, check and try again",
   "onboard.skip": "Skip for now",
-
   "slash.help": "Show available commands",
   "slash.new": "Start a new conversation",
   "slash.clear": "Clear current messages",
@@ -268,7 +260,6 @@
   "slash.usageQueue": "Usage: /queue <text>",
   "slash.usageTemplate": "Usage: {trigger} <text>",
   "memory.noMatch": "Nothing remembered matching \"{q}\".",
-
   "tool.fs_read": "Read file",
   "tool.fs_write": "Write file",
   "tool.fs_list": "List files",
@@ -288,7 +279,6 @@
   "tool.skill_load": "Loaded skill",
   "tool.mcp": "Used {server} tool",
   "tool.memory": "Checked memory",
-
   "tray.show": "Show Nexio",
   "tray.showHide": "Show / Hide",
   "tray.settings": "Settings…",
@@ -298,7 +288,6 @@
   "tray.pin": "Pin window (Alt+P)",
   "tray.unpin": "Unpin window (Alt+P)",
   "menu.edit": "Edit",
-
   "attach.oversize": "Attachment too large",
   "attach.oversizeFile": "{name} (max 20MB per file)",
   "attach.oversizeTotal": "{name} (max 50MB total)",
@@ -349,11 +338,9 @@
   },
   "attach.send.hint": "Attachment text may contain secrets — confirm before sharing.",
   "send.saveError": "Couldn't save message",
-
   "incognito.on": "Incognito on: no history, no memory reads or writes.",
   "incognito.off": "Incognito off.",
   "incognito.badge": "Incognito",
-
   "memNotice.remote": "Nexio keeps these notes on this computer. When relevant, they are sent to {provider} with your request.",
   "memNotice.local": "Nexio keeps these notes on this computer.",
   "memNotice.ok": "Got it",
@@ -363,7 +350,6 @@
   "askNotice.remote": "Nexio will send text from files it reads to {provider} to answer. Local providers keep it on this computer.",
   "action.jumpLatest": "Jump to latest",
   "action.jumpLatestMsg": "Jump to latest message",
-
   "common.back": "Back",
   "common.close": "Close",
   "common.cancel": "Cancel",
@@ -397,13 +383,28 @@
   "web.openSettings": "Open Settings",
   "context.label": "Context",
   "context.detachAll": "Detach all",
-  "context.selectedText": {"one": "Selected text, {count} character", "other": "Selected text, {count} characters"},
+  "context.selectedText": {
+    "one": "Selected text, {count} character",
+    "other": "Selected text, {count} characters"
+  },
   "context.selectedTruncated": "(truncated)",
-  "context.filesIn": {"one": "{count} file in {folder}: {names}{more}", "other": "{count} files in {folder}: {names}{more}"},
-  "context.filesNoFolder": {"one": "{count} file: {names}{more}", "other": "{count} files: {names}{more}"},
+  "context.filesIn": {
+    "one": "{count} file in {folder}: {names}{more}",
+    "other": "{count} files in {folder}: {names}{more}"
+  },
+  "context.filesNoFolder": {
+    "one": "{count} file: {names}{more}",
+    "other": "{count} files: {names}{more}"
+  },
   "context.folder": "Folder: {name}",
-  "context.clipboardText": {"one": "Clipboard: text, {count} character", "other": "Clipboard: text, {count} characters"},
-  "context.clipboardFiles": {"one": "Clipboard: {count} file", "other": "Clipboard: {count} files"},
+  "context.clipboardText": {
+    "one": "Clipboard: text, {count} character",
+    "other": "Clipboard: text, {count} characters"
+  },
+  "context.clipboardFiles": {
+    "one": "Clipboard: {count} file",
+    "other": "Clipboard: {count} files"
+  },
   "context.clipboardKind": "Clipboard: {kind}",
   "context.page": "Page: {title} ({domain})",
   "context.pageBare": "Page",
@@ -449,5 +450,17 @@
   "slash.clip": "Attach the clipboard (usage: /clip)",
   "slash.sel": "Re-read the selection from the previous app",
   "context.suggestSummarize": "Summarize the selected text",
-  "context.suggestMove": "Move these files to a new folder"
+  "context.suggestMove": "Move these files to a new folder",
+  "context.stateDenyListed": "skipped (blocked app)",
+  "context.stateUnsupported": "skipped (unsupported app)",
+  "context.stateNotConfigured": "skipped (not set up)",
+  "context.stateNoScreen": "screen capture is not available yet",
+  "context.shotReady": "Screenshot: {source}",
+  "context.shotBare": "Screenshot",
+  "context.shotDetail": "{width}×{height}px — sent as an image when you press Enter",
+  "context.shotCaptured": "Screenshot captured — review it below, remove it any time before sending.",
+  "context.shotCapture": "Capture screen",
+  "context.shotRemove": "Remove screenshot",
+  "context.openSettings": "Open System Settings",
+  "context.screenRecordingFix": "Allow Screen Recording for Nexio, then run /screen again."
 }

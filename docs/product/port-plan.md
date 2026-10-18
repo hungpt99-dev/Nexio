@@ -145,3 +145,16 @@ rules), full Vietnamese renderer strings for the Decisions page.
   here; start/stop/health logic is implemented but untested against a real
   server. Weights are deliberately not bundled or downloaded.
 - Cloudflare CLEF "Jev-compatibility" is unverified and not offered.
+
+## Reality + build status (2026-10-18, `feat/reality`)
+
+Done: reality-check (`docs/product/reality-check.md`); capability registry +
+probes + `check-claims` in verify; stubs removed/wired (`theme`,
+`memorySemantic` deleted with legacy cleanup, `modeHotkey` wired + Settings
+field, SkipReason mappings complete, `/clip` raw-state fix); screenshot
+built for real (desktopCapturer, explicit only, `/screen`, panel, probes,
+audit); scheduler built for real (SQLite jobs, cron subset, TZ/DST-safe,
+`/schedule` + Settings UI, Ask/Do scope, approvals + kill switch intact).
+Not built (no UI/settings/docs claims anywhere — nothing to remove):
+voice input, resumable turns, local document search, desktop window.
+Zero new dependencies (cron subset and probes use Intl/Electron built-ins).

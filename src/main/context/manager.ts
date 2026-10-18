@@ -4,6 +4,7 @@ import type { Settings } from '../../shared/types';
 import type { ActiveWindow, ContextSnapshot, ContextSourceName } from './types';
 import { beginSnapshot, capText, getSnapshot, SELECTION_CAP } from './store';
 import { collectApp, collectClipboard, collectFiles, collectPage, collectSelection, denyListed, type CollectorCtx } from './collectors';
+import { probeScreenCapture } from '../capabilities/registry';
 import { copyFallback } from './fallback';
 
 export interface ContextEmit {
@@ -71,6 +72,17 @@ export async function refreshContext(
     (async () => {
       await collectPage(snap, external, ctx);
       opts.emit?.onSource('page', snap.states.page);
+    })(),
+    (async () => {
+      // why: probe only — capture is always an explicit user action, never
+      // part of refresh. A passing probe means "ready to capture".
+      try {
+        const p = probeScreenCapture();
+        snap.states.screenshot = p.available ? 'skipped:empty' : 'unavailable:no_permission';
+      } catch {
+        snap.states.screenshot = 'unavailable:unsupported_app';
+      }
+      opts.emit?.onSource('screenshot', snap.states.screenshot);
     })(),
   ];
   await Promise.allSettled(jobs);

@@ -21,7 +21,7 @@ function clearTimer(): void {
 }
 
 function emptyStates(): Record<ContextSourceName, string> {
-  return { selection: 'skipped:disabled', files: 'skipped:disabled', folder: 'skipped:disabled', clipboard: 'skipped:disabled', page: 'skipped:disabled', screenshot: 'skipped:no_screen_context' };
+  return { selection: 'skipped:disabled', files: 'skipped:disabled', folder: 'skipped:disabled', clipboard: 'skipped:disabled', page: 'skipped:disabled', screenshot: 'skipped:not_configured' };
 }
 
 /** Begin a capture: snapshot exists in memory only, expires after 60 s. */

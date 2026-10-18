@@ -17,10 +17,10 @@ describe('settings validation', () => {
   });
   it('persists round-trip in sqlite', () => {
     const db = openTestDb();
-    updateSettings(db, { model: 'gpt-x', theme: 'dark' });
+    updateSettings(db, { model: 'gpt-x', hotkey: 'Ctrl+Space' });
     const s = getSettings(db);
     expect(s.model).toBe('gpt-x');
-    expect(s.theme).toBe('dark');
+    expect(s.hotkey).toBe('Ctrl+Space');
     expect(() => updateSettings(db, { model: '' })).toThrow();
     db.close();
   });

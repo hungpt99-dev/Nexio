@@ -10,7 +10,7 @@ import type { AgentEvent, Tool } from '../../src/main/agent/types';
 
 const APP = { name: 'Notepad', windowTitle: 'n', isBrowser: false };
 const settings = (over: Record<string, unknown> = {}) =>
-  ({ provider: 'openai', model: 'm', theme: 'light', hotkey: '', mode: 'chat', ...over }) as never;
+  ({ provider: 'openai', model: 'm', hotkey: '', mode: 'chat', ...over }) as never;
 
 function toolTurn(calls: Array<{ id: string; name: string; input: unknown }>, text = ''): Response {
   return new Response(JSON.stringify({

@@ -50,6 +50,7 @@ import { isEnforcedRule, loadFolderRulesFile, memoryProtectedPaths, extractPathC
 import { extractCandidates } from './memory/extract';
 import { classifyMemoryIntent, matchFastPath, type ClassifiedMemory, type FastMatch, type MemoryDecide } from './memory/classify';
 import { routeDecideFor, memoryDecideFor, contextDecideFor, testDecision } from './decisions/wire';
+import { screenshotStaged, clearShot, captureScreenshot, electronCapturer, storeShot, type Shot } from './context/screenshot';
 import { normalizeMemoryText, memoryHash as memoryTextHash } from './memory/types';
 import { isMemoryKind } from './memory/store';
 import type { MemoryKind, MemoryPush, MemoryScope } from '../shared/types';
@@ -82,7 +83,7 @@ import { decodeAttachmentText } from './attachments/decode';
 import { clearRunAttachments, registerRunAttachments } from './agent/tools/attachment_tools';
 import { VisionNotSupportedError } from './ai/providers/vision';
 import type { ContentPart } from './ai/providers/types';
-import type { ChatMessage, Mode, ProviderId, Settings, TaskAction, TaskRow, DecisionAction } from '../shared/types';
+import type { ChatMessage, Mode, ProviderId, Settings, TaskAction, TaskRow, DecisionAction, ScheduleAction } from '../shared/types';
 import {
   initScheduler, initTaskWatchdog, pushTasksChanged, createUserTask, createSubtaskRecord, removeTask, clearQueue,
   resumeAll, discardWaiting, undoTaskFamily, lockHooksFor, pendingApprovalsFor,
@@ -90,7 +91,10 @@ import {
   type TaskHostApi,
 } from './tasks/taskHost';
 import { type Task } from './tasks/taskTypes';
-import { updateTask as updateTaskRow } from './tasks/taskStore';
+import { updateTask as updateTaskRow, getTask as getTaskRow } from './tasks/taskStore';
+import { listJobs, getJob as getJobRow, insertJob, updateJob as updateJobRow, deleteJob as deleteJobRow } from './scheduler/store';
+import { parseSpec as parseJobSpec, validTimeZone as validJobTimeZone, describeSpec as describeJobSpec, nextRunMs as nextJobRunMs } from './scheduler/spec';
+import { syncJobStatuses as syncJobStatusesImpl, jobScheduler as jobSchedulerImpl } from './scheduler/wire';
 import { TaskParkedError } from './agent/types';
 import { makeSubtaskTools } from './tasks/subtaskTools';
 import { toAppError, missingKeyError } from './errors/app-error';
@@ -923,7 +927,7 @@ async function runSend(
   const mode: Mode = opts.mode || s.mode || 'agent';
   const sessionId = opts.sessionId || conversationId;
   const requestId = opts.requestId || `req-${Date.now()}-${++seq}`;
-  const staged = opts.attachments || [];
+  const staged = [...(opts.attachments || []), ...(s.incognito === true ? [] : screenshotStaged())];
   const text = content.trim() || (staged.length ? ATTACH_STRINGS.defaultInstruction : '');
   if (!text && !staged.length) return '';
   const incognito = s.incognito === true;
@@ -1971,7 +1975,7 @@ function registerAgentIpc(): void {
       // No task, no run: a single friendly terminal state via the envelope.
       throw missingKeyError(String(s.provider));
     }
-    const staged = opts.attachments || [];
+    const staged = [...(opts.attachments || []), ...(s.incognito === true ? [] : screenshotStaged())];
     const text = content.trim() || (staged.length ? ATTACH_STRINGS.defaultInstruction : content);
     const incognito = s.incognito === true;
     if (!incognito) addMessage(d, conversationId, 'user', text, { mode: 'do' });
@@ -2233,6 +2237,7 @@ function registerHistoryIpc(): void {
     const panes: Record<string, string> = {
       accessibility: 'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility',
       automation: 'x-apple.systempreferences:com.apple.preference.security?Privacy_Automation',
+      'screen-recording': 'x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture',
     };
     const url = panes[String(pane || '').toLowerCase()];
     if (!url) throw new Error('Unknown settings pane');
@@ -2805,6 +2810,146 @@ function registerTaskIpc(): void {
         throw new Error(`unknown tasks action: ${(a as { action?: string }).action}`);
     }
   });
+/** Present a job for the UI: human schedule text + next run, never raw spec. */
+interface JobSpecMod {
+  parseSpec(raw: unknown): { ok: true; spec: import('./scheduler/spec').JobSpec } | { ok: false; error: string };
+  validTimeZone(tz: string): boolean;
+  describeSpec(spec: import('./scheduler/spec').JobSpec, tz: string): string;
+  nextRunMs(spec: import('./scheduler/spec').JobSpec, tz: string, fromMs: number): number | null;
+}
+function presentJob(
+  j: { id: string; name: string; prompt: string; scope: string; spec: string; tz: string; enabled: boolean; conversationId: string | null; missPolicy: string; lastRunAt: number | null; lastStatus: string | null; lastSummary: string | null; createdAt: number; updatedAt: number },
+  specMod: JobSpecMod,
+): Record<string, unknown> {
+  let human = '';
+  let next: number | null = null;
+  try {
+    const raw = JSON.parse(j.spec) as unknown;
+    const p = specMod.parseSpec(raw);
+    if (p.ok) {
+      human = specMod.describeSpec(p.spec, j.tz);
+      const tz = j.tz && specMod.validTimeZone(j.tz) ? j.tz : Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+      next = specMod.nextRunMs(p.spec, tz, Date.now());
+    }
+  } catch { /* invalid spec presents without schedule text */ }
+  return { ...j, human, nextRunAt: next };
+}
+
+/** Validate create input; returns normalized fields or throws. */
+function validateJobInput(
+  act: { name?: unknown; prompt?: unknown; scope?: unknown; spec?: unknown; tz?: unknown; missPolicy?: unknown },
+  specMod: JobSpecMod,
+): { name: string; prompt: string; scope: 'ask' | 'do'; spec: import('./scheduler/spec').JobSpec; tz: string; missPolicy: 'run-once' | 'skip' } {
+  if (typeof act.name !== 'string' || !act.name.trim() || act.name.length > 80) throw new Error('name must be 1..80 chars');
+  if (typeof act.prompt !== 'string' || !act.prompt.trim() || act.prompt.length > 4000) throw new Error('prompt must be 1..4000 chars');
+  if (act.scope !== undefined && act.scope !== 'ask' && act.scope !== 'do') throw new Error('scope must be ask or do');
+  const p = specMod.parseSpec(act.spec);
+  if (!p.ok) throw new Error(`invalid schedule: ${p.error}`);
+  const tz = typeof act.tz === 'string' ? act.tz : '';
+  if (tz && !specMod.validTimeZone(tz)) throw new Error('unknown timezone');
+  if (act.missPolicy !== undefined && act.missPolicy !== 'run-once' && act.missPolicy !== 'skip') {
+    throw new Error('missPolicy must be run-once or skip');
+  }
+  return {
+    name: act.name.trim(), prompt: (act.prompt as string).trim(),
+    scope: act.scope === 'do' ? 'do' : 'ask', spec: p.spec, tz,
+    missPolicy: act.missPolicy === 'run-once' ? 'run-once' : 'skip',
+  };
+}
+  typedHandle(IpcChannels.schedules, vObj0, async (_e, a: ScheduleAction) => {
+    // why: lazy requires keep scheduler failures from breaking ipc load.
+    const store = { listJobs, getJob: getJobRow, insertJob, updateJob: updateJobRow, deleteJob: deleteJobRow };
+    const specMod = { parseSpec: parseJobSpec, validTimeZone: validJobTimeZone, describeSpec: describeJobSpec, nextRunMs: nextJobRunMs };
+    const wire = { syncJobStatuses: syncJobStatusesImpl, jobScheduler: jobSchedulerImpl };
+    const d = db();
+    const act = a as ScheduleAction;
+    const sync = () => {
+      try {
+        wire.syncJobStatuses(d, (tid: string) => {
+          try {
+            const t = getTaskRow(d, tid) as { state?: string } | null;
+            return t?.state || null;
+          } catch {
+            return null;
+          }
+        });
+      } catch { /* history best-effort */ }
+      try { wire.jobScheduler()?.arm(); } catch { /* noop */ }
+    };
+    if (act.action === 'list') {
+      sync();
+      return store.listJobs(d).map((j) => presentJob(j, specMod));
+    }
+    if (act.action === 'get') {
+      sync();
+      const j = store.getJob(d, String(act.id));
+      if (!j) throw new Error('Unknown job');
+      return presentJob(j, specMod);
+    }
+    if (act.action === 'create') {
+      const b = validateJobInput(act, specMod);
+      const now = Date.now();
+      const id = `job-${now.toString(36)}-${Math.floor(Math.random() * 1e6).toString(36)}`;
+      store.insertJob(d, {
+        id, name: b.name, prompt: b.prompt, scope: b.scope, spec: JSON.stringify(b.spec),
+        tz: b.tz, enabled: true, conversationId: null, missPolicy: b.missPolicy,
+        createdAt: now, updatedAt: now,
+      });
+      sync();
+      const j = store.getJob(d, id);
+      if (!j) throw new Error('Job not created');
+      return presentJob(j, specMod);
+    }
+    if (act.action === 'update') {
+      const cur = store.getJob(d, String(act.id));
+      if (!cur) throw new Error('Unknown job');
+      const patch: Record<string, unknown> = {};
+      if (act.name !== undefined) {
+        if (typeof act.name !== 'string' || !act.name.trim() || act.name.length > 80) throw new Error('name must be 1..80 chars');
+        patch.name = act.name.trim();
+      }
+      if (act.prompt !== undefined) {
+        if (typeof act.prompt !== 'string' || !act.prompt.trim() || act.prompt.length > 4000) throw new Error('prompt must be 1..4000 chars');
+        patch.prompt = act.prompt.trim();
+      }
+      if (act.scope !== undefined) {
+        if (act.scope !== 'ask' && act.scope !== 'do') throw new Error('scope must be ask or do');
+        patch.scope = act.scope;
+      }
+      if (act.spec !== undefined) {
+        const p = specMod.parseSpec(act.spec);
+        if (!p.ok) throw new Error(`invalid schedule: ${p.error}`);
+        patch.spec = JSON.stringify(p.spec);
+      }
+      if (act.tz !== undefined) {
+        if (typeof act.tz !== 'string' || (act.tz && !specMod.validTimeZone(act.tz))) throw new Error('unknown timezone');
+        patch.tz = act.tz;
+      }
+      if (act.enabled !== undefined) patch.enabled = !!act.enabled;
+      if (act.missPolicy !== undefined) {
+        if (act.missPolicy !== 'run-once' && act.missPolicy !== 'skip') throw new Error('missPolicy must be run-once or skip');
+        patch.missPolicy = act.missPolicy;
+      }
+      store.updateJob(d, String(act.id), patch as Parameters<typeof store.updateJob>[2]);
+      sync();
+      const j = store.getJob(d, String(act.id));
+      if (!j) throw new Error('Unknown job');
+      return presentJob(j, specMod);
+    }
+    if (act.action === 'remove') {
+      if (!store.deleteJob(d, String(act.id))) throw new Error('Unknown job');
+      try { wire.jobScheduler()?.arm(); } catch { /* noop */ }
+      return true;
+    }
+    if (act.action === 'runNow') {
+      const sch = wire.jobScheduler();
+      if (!sch) throw new Error('Scheduler is not running');
+      const summary = await sch.runNow(String(act.id));
+      sync();
+      return { summary };
+    }
+    throw new Error(`unknown schedules action: ${(a as { action?: string }).action}`);
+  });
 }
 
 /** Route a Do-bound submit through tasks. Returns notice text or null for inline foreground. */
@@ -2818,7 +2963,7 @@ function routeTaskSubmit(
   const text = o.text;
   const running = sch.counts().running;
   const wantQueue = o.opts.queued === true || o.opts.taskAction === 'queue';
-  const make = (origin: 'user_spawn' | 'user_queue', hold = false): { task: Task } | { error: string } =>
+  const make = (origin: 'user_spawn' | 'user_queue' | 'agent_subtask' | 'scheduled', hold = false): { task: Task } | { error: string } =>
     createUserTask(api, {
       prompt: text, origin, cwd: o.cwd, provider: s.provider, model: s.model,
       staged: o.staged, conversationId: o.conversationId, ...(hold ? { hold: true } : {}),
@@ -2966,6 +3111,57 @@ function registerMemoryIpc(): void {
   });
 }
 
+/** JobWire for the scheduler singleton (lazy requires keep ipc load safe). */
+function jobWire(): import('./scheduler/wire').JobWire {
+  const { Notification } = require('electron') as typeof import('electron');
+  return {
+    db: () => db(),
+    settings: () => {
+      const s = getSettings(db());
+      return { agentCwd: s.agentCwd, provider: s.provider, model: s.model };
+    },
+    createTask: (input) => {
+      const api = taskHostApi();
+      const r = createUserTask(api, {
+        prompt: input.prompt, origin: 'scheduled', runMode: input.runMode,
+        cwd: input.cwd, provider: input.provider, model: input.model,
+        conversationId: input.conversationId, title: input.title,
+      });
+      if ('error' in r) return { error: r.error };
+      return { taskId: r.task.id };
+    },
+    createConversation: (title) => createConversation(db(), title).id,
+    taskState: (tid: string) => {
+      try {
+        const t = getTaskRow(db(), tid) as { state?: string } | null;
+        return t?.state || null;
+      } catch {
+        return null;
+      }
+    },
+    notify: (title) => {
+      try {
+        if (getSettings(db()).taskNotifications === false) return;
+        new Notification({ title, silent: true }).show();
+      } catch { /* headless tests */ }
+    },
+  };
+}
+
+/** Start the job scheduler (main calls after IPC is up; safe to call twice). */
+export function startSchedules(): void {
+  try {
+    require('./scheduler/wire').startJobScheduler(jobWire());
+  } catch { /* scheduler never breaks startup */ }
+}
+
+/** Stop the job scheduler (quit path). */
+export function stopSchedules(): void {
+  try {
+    require('./scheduler/wire').stopJobScheduler();
+  } catch { /* noop */ }
+}
+
 export function registerIpc(): void {
   registerSettingsIpc();
   registerDataIpc();
@@ -3032,8 +3228,36 @@ function registerContextIpc(): void {
   typedHandle(IpcChannels.contextDetach, vStr1, (_e, source: string) => {
     const snap = getSnapshot();
     if (!snap) return false;
+    if (source === 'screenshot') {
+      clearShot(snap);
+      return true;
+    }
     detachSource(snap, source as never);
     return true;
+  });
+  typedHandle(IpcChannels.contextCapture, vOptStr, async (_e, mode?: string) => {
+    const snap = getSnapshot();
+    if (!snap) throw new Error('No live context — press the hotkey first.');
+    const d = db();
+    const s = getSettings(d);
+    const m = mode === 'screen' ? 'screen' : 'window';
+    const r = await captureScreenshot(m, snap.external, s.contextDenyList || [], electronCapturer());
+    if (!r.ok) {
+      const inner = r as { ok: false; skip: string; detail?: string };
+      if (inner.skip === 'denied') throw new Error('Refused: this app is on your never-capture list.');
+      if (inner.skip === 'no_permission') {
+        const e = new Error('Screen Recording is not allowed for Nexio.') as Error & { action: string };
+        e.action = 'open-screen-recording';
+        throw e;
+      }
+      throw new Error(`Could not capture (${inner.detail || inner.skip}).`);
+    }
+    const meta = storeShot(snap, (r as { ok: true; shot: Shot }).shot);
+    try {
+      const wlog = createRunLog(undefined, `shot-${Date.now()}`);
+      appendLog(wlog.path, { runId: snap.id, screenshot: { source: (r as { ok: true; shot: { source: string } }).shot.source, size: meta.size, sha: meta.sha } });
+    } catch { /* logging never breaks runs */ }
+    return buildSnapshotView(snap).views.find((v) => v.source === 'screenshot') || null;
   });
   typedHandle(IpcChannels.contextExclude, vHead1, (_e, id: string, excluded: boolean) => {
     const { setFileExcluded } = require('./context/store') as typeof import('./context/store');

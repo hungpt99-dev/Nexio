@@ -34,3 +34,10 @@ Handled before the router, in Ask and Do:
 - `/clip` — attach the clipboard (explains why when it can't).
 - `/sel` — re-read the selection from the previous app (explains how when
   it is not available: select again and press the hotkey).
+- `/screen [window|screen]` — capture the active window (default) or the
+  display under the cursor. Explicit only: nothing is captured until you run
+  this. The popup hides during capture. Review the thumbnail chip and remove
+  it any time before sending; it rides the normal attachment pipeline
+  (vision models get the image, others get a switch-model notice).
+- `/schedule` — list/add/pause/resume/run/delete scheduled jobs
+  (`/schedule help` prints usage).

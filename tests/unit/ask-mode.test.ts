@@ -270,7 +270,7 @@ describe('ask injection + secrets', () => {
     await runAgent('read then act', {
       provider: 'openai', apiKey: 'k', model: 'm', cwd: dir, history: [],
       allowedRoots: [dir], mode: 'ask',
-      webSettings: { provider: 'openai', model: 'm', theme: 'light', hotkey: '', mode: 'chat', webAllow: true, webConsent: { 'hosted:duckduckgo': true } } as never,
+      webSettings: { provider: 'openai', model: 'm', hotkey: '', mode: 'chat', webAllow: true, webConsent: { 'hosted:duckduckgo': true } } as never,
       tools: [read, fakeTool({
         name: 'web_search', risk: 'read', askSafe: true,
         inputSchema: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] },

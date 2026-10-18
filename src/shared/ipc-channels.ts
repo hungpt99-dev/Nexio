@@ -9,6 +9,7 @@ import type {
   MemoryPush,
   Mode,
   PromptTemplate,
+  ScheduleAction,
   Settings,
   SlashMatch,
   SlashScope,
@@ -39,6 +40,8 @@ export const IpcChannels = {
   contextDetach: 'nexio:context-detach',
   contextStatus: 'nexio:context-status',
   contextRoute: 'nexio:context-route',
+  contextCapture: 'nexio:context-capture',
+  schedules: 'nexio:schedules',
   listModels: 'nexio:list-models',
   resetProviderFixes: 'nexio:reset-provider-fixes',
   listConversations: 'nexio:list-conversations',
@@ -205,6 +208,7 @@ export interface IpcChannelMap {
   contextDetach: { args: [source: string]; result: boolean };
   contextStatus: { args: []; result: { sources: string[]; states: Record<string, string>; attached: string[]; expiresInMs: number } };
   contextRoute: { args: [text: string]; result: { needsContext: string[]; deictic: boolean; ambiguity?: string[] } };
+  contextCapture: { args: [mode?: string]; result: unknown };
   runs: { args: []; result: Array<{ runId: string; kind: 'agent' | 'workflow'; prompt: string; outcome: string; ts: number; status: 'done' | 'error' | 'stopped'; undoable: boolean }> };
   attachPick: { args: []; result: Array<{ path: string; name: string; size: number; mime: string; previewDataUrl?: string; verdict: string; reason?: string }> };
   attachProcess: { args: [input: { runId: string; name: string; dataBase64: string }]; result: { id: string; name: string; mime: string; size: number; kind: string; width?: number; height?: number; previewDataUrl?: string; sha256: string; error?: string } };
@@ -212,6 +216,7 @@ export interface IpcChannelMap {
   attachClear: { args: [runId: string]; result: boolean };
   memory: { args: [a: MemoryAction]; result: unknown };
   decisions: { args: [a: DecisionAction]; result: unknown };
+  schedules: { args: [a: ScheduleAction]; result: unknown };
   tasks: { args: [a: TaskAction]; result: unknown };
   tasksChanged: { args: [{ rev: number }]; result: void };
   memoryEvent: { args: [{ runId?: string; requestId?: string; conversationId?: string; event: MemoryPush }]; result: void };

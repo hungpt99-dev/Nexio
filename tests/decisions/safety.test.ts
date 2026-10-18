@@ -65,7 +65,7 @@ describe('audit: hashes only, chip has no text', () => {
 describe('wire: settings gate + language guess', () => {
   it('disabled/empty config yields no registry (offline path)', () => {
     const db = openTestDb();
-    expect(registryFor(db, { provider: 'openai', model: 'm', theme: 'light', hotkey: 'h', mode: 'agent' })).toBeNull();
+    expect(registryFor(db, { provider: 'openai', model: 'm', hotkey: 'h', mode: 'agent' })).toBeNull();
     expect(registryFromSettings({ order: [], endpoints: [], toolScope: [], rules: [] }, () => null)).toBeTruthy();
     expect(decisionsEnabled(undefined)).toBe(false);
     expect(decisionsEnabled({ order: [], endpoints: [], toolScope: [], rules: [] })).toBe(false);

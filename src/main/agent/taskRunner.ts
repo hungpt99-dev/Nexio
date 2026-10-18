@@ -63,8 +63,9 @@ export interface TaskRunEnv {
 
 /**
  * Execute one scheduler task through the SAME agent loop, tools, permission
- * layer, approvals, limits, run log and undo journal as a normal Do run.
- * Ask mode can never reach here (no subtask tools there, no task entry).
+ * layer, approvals, limits, run log and undo journal as a normal run.
+ * Do tasks act with approvals; scheduled Ask tasks run the read-only loop
+ * (no approval cards ever, writes blocked at the dispatcher).
  */
 export async function runScheduledTask(
   task: Task,
@@ -101,12 +102,15 @@ export async function runScheduledTask(
     const policy = env.policyForTask(task);
     const { tools: extraTools, systemExtra: extExtra } = await env.extras().catch(() => ({ tools: [] as Tool[], systemExtra: '' }));
     const subCtx = makeSubtaskContext(task, ctl, env, policy);
-    const tools = [
+    // why: scheduled Ask runs stay read-only through the same loop — subtask
+    // tools are Do-only and the model filter hides write tools in Ask.
+    const runMode = task.snapshot.mode === 'ask' ? 'ask' as const : 'do' as const;
+    const tools = taskToolsForMode(runMode, [
       ...ALL_TOOLS,
       ...makeMemoryTools(env.db, { maxItems: s.memoryMaxItems ?? 500 }),
-      ...(s.taskAllowSubtasks !== false && task.depth < TASK_LIMITS.maxDepth ? makeSubtaskTools(subCtx) : []),
+      ...(runMode === 'do' && s.taskAllowSubtasks !== false && task.depth < TASK_LIMITS.maxDepth ? makeSubtaskTools(subCtx) : []),
       ...extraTools,
-    ];
+    ]);
     // 429/Retry-After watch: pause the queue instead of failing the task.
     let rateLimitedMs = 0;
     const watchFetch: typeof fetch = (async (url: unknown, init?: unknown) => {
@@ -124,7 +128,7 @@ export async function runScheduledTask(
       ctl.heartbeat();
       try {
         env.logLine(runId, {
-          runId, mode: 'do', taskId: task.id, parentId: task.parentId, depth: task.depth,
+          runId, mode: runMode, taskId: task.id, parentId: task.parentId, depth: task.depth,
           origin: task.origin, priority: task.priority, event: scrubEvent(event),
         });
       } catch { /* logging never breaks the run */ }
@@ -148,6 +152,7 @@ export async function runScheduledTask(
       allowedRoots: (policy.allowedRoots as string[]).length ? policy.allowedRoots as string[] : undefined,
       alwaysAllow: (policy.alwaysAllow as AlwaysRule[]) || [],
       requireApprovalForWrites: s.requireApprovalForWrites !== false,
+      mode: runMode,
       tools,
       systemExtra,
       hooks: env.hooks(cwd, state.controller.signal),

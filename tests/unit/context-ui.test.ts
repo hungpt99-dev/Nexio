@@ -10,9 +10,9 @@ const css = (): string => fs.readFileSync(path.join(root, 'src/renderer/styles.c
 const enDict = (): Record<string, unknown> => JSON.parse(fs.readFileSync(path.join(root, 'src/main/i18n/locales/en.json'), 'utf8'));
 
 describe('context UI: one view, footer in shell, honest chips', () => {
-  it('tray order is Selection, Files, Folder, Page, Clipboard; single-line ellipsis chips', () => {
+  it('tray order is Selection, Files, Folder, Page, Clipboard, Screenshot; single-line ellipsis chips', () => {
     const src = appJs();
-    expect(src).toContain("var CTX_ORDER = ['selection', 'files', 'folder', 'page', 'clipboard'];");
+    expect(src).toContain("var CTX_ORDER = ['selection', 'files', 'folder', 'page', 'clipboard', 'screenshot'];");
     expect(css()).toMatch(/\.ctx-chip \.ctx-tx \{[^}]*white-space: nowrap[^}]*text-overflow: ellipsis/s);
   });
   it('chip states Attached/Available/Unavailable reuse selected/accent/muted tokens', () => {

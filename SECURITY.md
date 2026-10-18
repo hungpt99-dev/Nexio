@@ -242,3 +242,42 @@ Do not include keys, tokens, or personal data in reports.
   per-option probabilities, verdict, outcome and latency (`decisions` table)
   — never raw text (unless the explicit debug option is on), never keys.
   See `docs/architecture/decisions.md`.
+
+## Screen capture (explicit only, no background capture)
+
+- Nothing is captured on refresh, on a timer, or in the background: capture
+  runs only from `/screen`, the panel Capture button, or the
+  `context-capture` channel. The popup hides before capture and restores
+  after; a 350 ms beat keeps the popup out of its own shot.
+- The recorded window is matched by id/title and refused on mismatch — a
+  capture never silently takes a neighbouring window. Deny-listed apps
+  (password managers et al., `contextDenyList`) refuse with `denied`.
+- macOS Screen Recording is probed via the real API; denial shows a plain
+  reason plus a button to the exact System Settings pane. No permission is
+  ever requested silently.
+- PNG bytes live in the snapshot (memory only, 60 s expiry, cleared on
+  hide/incognito/quit/detach). Run logs and the `decisions` audit carry
+  source/size/sha only. On send the shot rides the normal attachment
+  pipeline (re-encode, EXIF strip, size cap, temp-dir cleanup); vision-less
+  models get a switch-model notice, never a silent drop.
+- Captured pixels are untrusted content like any attachment: they cannot
+  grant approvals, write memories, or trigger tools without the normal flow.
+
+## Scheduled tasks (jobs run only while the app runs)
+
+- Each fire is a normal turn in its own conversation with the job's stored
+  scope. Do runs go through the task pipeline: approvals park in
+  `waiting_approval` with a system notification (tool + exact action, never
+  file contents), never auto-approve, and obey the kill switch like any
+  task. Ask runs stay read-only (no approval cards, writes blocked at the
+  dispatcher, no subtask tools).
+- Prompts are user-authored and stored in local SQLite; the job list shows
+  names + human schedule text, never secrets. Provider keys stay in
+  safeStorage; a missing key fails the run with setup guidance, never a
+  raw error.
+- Timezone handling uses the OS Intl database (no new dependency); a bad
+  timezone fails job creation, never fires at a wrong time.
+- No network, no telemetry: the scheduler is one in-process timer to the
+  nearest due job. Documented honestly: quit the app and jobs don't fire
+  (miss policy `run-once`/`skip` covers the gap); start-at-login + tray
+  residency keep it alive.

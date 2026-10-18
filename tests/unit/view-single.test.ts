@@ -248,7 +248,7 @@ describe('memory view: single-view mount, list/filter/edit/pin/forget, empty sta
   });
   it('settings Memory section, onboarding single screen, incognito badge', () => {
     const h = html();
-    for (const id of ['id="set-mem"', 'id="set-mem-kinds"', 'id="set-mem-suggest"', 'id="set-mem-semantic"', 'id="set-mem-ask"', 'id="set-incognito"', 'id="mem-info"', 'id="btn-mem-export"', 'id="btn-mem-forgetall"', 'id="mem-import-text"', 'id="incog-badge"']) {
+    for (const id of ['id="set-mem"', 'id="set-mem-kinds"', 'id="set-mem-suggest"', 'id="set-mem-ask"', 'id="set-incognito"', 'id="mem-info"', 'id="btn-mem-export"', 'id="btn-mem-forgetall"', 'id="mem-import-text"', 'id="incog-badge"']) {
       expect(h).toContain(id);
     }
     const src = appJs();
@@ -265,11 +265,11 @@ describe('memory view: single-view mount, list/filter/edit/pin/forget, empty sta
 describe('settings: one switch row per boolean, helper notes, chips, footer chip', () => {
   it('every boolean setting renders a visible track (root cause: hidden input, track span missing)', () => {
     const h = html();
-    // all twenty-two boolean rows carry the paint span; the native input is always hidden by CSS
+    // all twenty-one boolean rows carry the paint span; the native input is always hidden by CSS
     const tracks = h.split('switch-track" aria-hidden').length - 1;
-    expect(tracks).toBe(22);
+    expect(tracks).toBe(21);
     for (const id of ['set-sendtemp', 'set-askread', 'set-reqapprove', 'set-mem', 'set-mem-suggest',
-      'set-mem-semantic', 'set-mem-ask', 'set-incognito', 'set-login', 'set-hideblur', 'set-compact',
+      'set-mem-ask', 'set-incognito', 'set-login', 'set-hideblur', 'set-compact',
       'set-localtext',
       'set-task-subtasks', 'set-task-asksub', 'set-task-confirm', 'set-task-notify',
       'set-weballow', 'set-webaskbefore', 'set-websave',

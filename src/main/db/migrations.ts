@@ -1,6 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite';
 
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 export function runMigrations(db: DatabaseSync): void {
   db.exec(`
@@ -48,6 +48,14 @@ export function runMigrations(db: DatabaseSync): void {
       id TEXT PRIMARY KEY, ts INTEGER NOT NULL, kind TEXT NOT NULL,
       provider TEXT NOT NULL, model TEXT NOT NULL, inputHash TEXT NOT NULL,
       latencyMs INTEGER NOT NULL, ok INTEGER NOT NULL, errorCode TEXT
+    );
+    CREATE TABLE IF NOT EXISTS jobs (
+      id TEXT PRIMARY KEY, name TEXT NOT NULL, prompt TEXT NOT NULL,
+      scope TEXT NOT NULL DEFAULT 'ask', spec TEXT NOT NULL, tz TEXT NOT NULL DEFAULT '',
+      enabled INTEGER NOT NULL DEFAULT 1, conversationId TEXT,
+      missPolicy TEXT NOT NULL DEFAULT 'skip', lastTaskId TEXT,
+      lastRunAt INTEGER, lastStatus TEXT, lastSummary TEXT,
+      createdAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL
     );
   `);
   const row = db.prepare('SELECT value FROM meta WHERE key = ?').get('schema_version') as

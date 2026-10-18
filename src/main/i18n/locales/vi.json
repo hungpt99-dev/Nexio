@@ -8,7 +8,6 @@
   "composer.placeholder.do": "Bạn muốn làm gì?",
   "composer.placeholder.settings": "Cài đặt",
   "composer.placeholder.attach": "Thêm ghi chú, Enter để gửi…",
-
   "footer.tab": "đổi chế độ",
   "footer.enter.run": "chạy",
   "footer.enter.send": "gửi",
@@ -26,21 +25,18 @@
   "footer.log": "Nhật ký",
   "footer.incognito": "Ẩn danh",
   "footer.localHistory": "Lịch sử cục bộ bật",
-
   "answer.copy": "Sao chép",
   "answer.copied": "Đã chép",
   "answer.copyCode": "Sao chép khối mã",
   "answer.followup": "Hỏi tiếp",
   "answer.newchat": "Chat mới",
   "answer.more": "Thao tác khác",
-
   "approval.deny": "Từ chối",
   "approval.allowOnce": "Cho phép một lần",
   "approval.always": "Luôn cho phép…",
   "approval.exactCommand": "Đúng lệnh này",
   "approval.toolInFolder": "Công cụ này trong thư mục này",
   "approval.failed": "Không gửi được phê duyệt.",
-
   "settings.title": "Cài đặt",
   "settings.provider": "Nhà cung cấp",
   "settings.custom": "Tùy chỉnh",
@@ -115,12 +111,10 @@
   "settings.taskNotifyDesc": "Phê duyệt và tác vụ xong",
   "settings.taskPrune": "Xóa tác vụ sau (ngày)",
   "settings.taskPruneDesc": "Tác vụ đã xong và tệp của chúng",
-
   "history.title": "Lịch sử",
   "history.runs": "Nhật ký chạy",
   "history.ask": "Hỏi",
   "history.newChat": "+ Chat mới",
-
   "memory.title": "Trí nhớ",
   "memory.all": "Tất cả",
   "memory.preferences": "Sở thích",
@@ -228,7 +222,6 @@
   "memory.textLabel": "Nội dung trí nhớ",
   "memory.options": "Tùy chọn trí nhớ",
   "memory.scopeError": "Phạm vi phải là global, đường dẫn thư mục tuyệt đối, app:tên hoặc project:id.",
-
   "onboard.title": "Kết nối nhà cung cấp AI",
   "onboard.subtitle": "Dùng khóa của bạn. Khóa không rời khỏi thiết bị trừ khi gọi nhà cung cấp.",
   "onboard.apiKey": "Khóa API",
@@ -242,7 +235,6 @@
   "onboard.keyValid": "Khóa hợp lệ",
   "onboard.keyInvalid": "Khóa không hợp lệ, kiểm tra rồi thử lại",
   "onboard.skip": "Bỏ qua",
-
   "slash.help": "Hiện các lệnh có sẵn",
   "slash.new": "Bắt đầu cuộc trò chuyện mới",
   "slash.clear": "Xóa tin nhắn hiện tại",
@@ -268,7 +260,6 @@
   "slash.usageQueue": "Dùng: /queue <nội dung>",
   "slash.usageTemplate": "Dùng: {trigger} <nội dung>",
   "memory.noMatch": "Không có trí nhớ nào khớp với \"{q}\".",
-
   "tool.fs_read": "Đọc tệp",
   "tool.fs_write": "Ghi tệp",
   "tool.fs_list": "Liệt kê tệp",
@@ -288,7 +279,6 @@
   "tool.skill_load": "Đã tải kỹ năng",
   "tool.mcp": "Đã dùng công cụ {server}",
   "tool.memory": "Đã kiểm tra trí nhớ",
-
   "tray.show": "Hiện Nexio",
   "tray.showHide": "Hiện / Ẩn",
   "tray.settings": "Cài đặt…",
@@ -298,7 +288,6 @@
   "tray.pin": "Ghim cửa sổ (Alt+P)",
   "tray.unpin": "Bỏ ghim cửa sổ (Alt+P)",
   "menu.edit": "Sửa",
-
   "attach.oversize": "Tệp đính kèm quá lớn",
   "attach.oversizeFile": "{name} (tối đa 20MB mỗi tệp)",
   "attach.oversizeTotal": "{name} (tối đa 50MB tổng)",
@@ -349,11 +338,9 @@
   },
   "attach.send.hint": "Văn bản đính kèm có thể chứa bí mật — hãy xác nhận trước khi chia sẻ.",
   "send.saveError": "Không lưu được tin nhắn",
-
   "incognito.on": "Đã bật ẩn danh: không lịch sử, không đọc/ghi trí nhớ.",
   "incognito.off": "Đã tắt ẩn danh.",
   "incognito.badge": "Ẩn danh",
-
   "memNotice.remote": "Nexio giữ các ghi chú này trên máy của bạn. Khi cần, chúng được gửi tới {provider} cùng yêu cầu của bạn.",
   "memNotice.local": "Nexio giữ các ghi chú này trên máy của bạn.",
   "memNotice.ok": "Đã hiểu",
@@ -363,7 +350,6 @@
   "askNotice.remote": "Nexio sẽ gửi văn bản từ các tệp nó đọc tới {provider} để trả lời. Nhà cung cấp cục bộ giữ trên máy này.",
   "action.jumpLatest": "Tin mới nhất",
   "action.jumpLatestMsg": "Về tin nhắn mới nhất",
-
   "common.back": "Quay lại",
   "common.close": "Đóng",
   "common.cancel": "Hủy",
@@ -397,13 +383,28 @@
   "web.openSettings": "Mở Cài đặt",
   "context.label": "Ngữ cảnh",
   "context.detachAll": "Gỡ tất cả",
-  "context.selectedText": {"one": "Văn bản đã chọn, {count} ký tự", "other": "Văn bản đã chọn, {count} ký tự"},
+  "context.selectedText": {
+    "one": "Văn bản đã chọn, {count} ký tự",
+    "other": "Văn bản đã chọn, {count} ký tự"
+  },
   "context.selectedTruncated": "(đã cắt ngắn)",
-  "context.filesIn": {"one": "{count} tệp trong {folder}: {names}{more}", "other": "{count} tệp trong {folder}: {names}{more}"},
-  "context.filesNoFolder": {"one": "{count} tệp: {names}{more}", "other": "{count} tệp: {names}{more}"},
+  "context.filesIn": {
+    "one": "{count} tệp trong {folder}: {names}{more}",
+    "other": "{count} tệp trong {folder}: {names}{more}"
+  },
+  "context.filesNoFolder": {
+    "one": "{count} tệp: {names}{more}",
+    "other": "{count} tệp: {names}{more}"
+  },
   "context.folder": "Thư mục: {name}",
-  "context.clipboardText": {"one": "Khay nhớ tạm: văn bản, {count} ký tự", "other": "Khay nhớ tạm: văn bản, {count} ký tự"},
-  "context.clipboardFiles": {"one": "Khay nhớ tạm: {count} tệp", "other": "Khay nhớ tạm: {count} tệp"},
+  "context.clipboardText": {
+    "one": "Khay nhớ tạm: văn bản, {count} ký tự",
+    "other": "Khay nhớ tạm: văn bản, {count} ký tự"
+  },
+  "context.clipboardFiles": {
+    "one": "Khay nhớ tạm: {count} tệp",
+    "other": "Khay nhớ tạm: {count} tệp"
+  },
   "context.clipboardKind": "Khay nhớ tạm: {kind}",
   "context.page": "Trang: {title} ({domain})",
   "context.pageBare": "Trang",
@@ -449,5 +450,17 @@
   "slash.clip": "Đính kèm khay nhớ tạm (cách dùng: /clip)",
   "slash.sel": "Đọc lại vùng chọn từ ứng dụng trước đó",
   "context.suggestSummarize": "Tóm tắt văn bản đã chọn",
-  "context.suggestMove": "Di chuyển các tệp này sang thư mục mới"
+  "context.suggestMove": "Di chuyển các tệp này sang thư mục mới",
+  "context.stateDenyListed": "đã bỏ qua (ứng dụng bị chặn)",
+  "context.stateUnsupported": "đã bỏ qua (ứng dụng không hỗ trợ)",
+  "context.stateNotConfigured": "đã bỏ qua (chưa thiết lập)",
+  "context.stateNoScreen": "chụp màn hình chưa khả dụng",
+  "context.shotReady": "Ảnh chụp màn hình: {source}",
+  "context.shotBare": "Ảnh chụp màn hình",
+  "context.shotDetail": "{width}×{height}px — gửi dưới dạng ảnh khi bạn nhấn Enter",
+  "context.shotCaptured": "Đã chụp màn hình — xem lại bên dưới, gỡ bỏ bất cứ lúc nào trước khi gửi.",
+  "context.shotCapture": "Chụp màn hình",
+  "context.shotRemove": "Gỡ ảnh chụp",
+  "context.openSettings": "Mở Cài đặt hệ thống",
+  "context.screenRecordingFix": "Hãy cho phép Ghi màn hình cho Nexio, rồi chạy lại /screen."
 }
