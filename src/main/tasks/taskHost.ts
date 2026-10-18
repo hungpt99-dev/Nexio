@@ -45,16 +45,16 @@ export interface TaskHostApi {
   registerRun(runId: string, state: { controller: AbortController; approvals: Map<string, (o: ApprovalOutcome) => void> }): void;
   unregisterRun(runId: string): void;
   approvalWaiter(state: { controller: AbortController; approvals: Map<string, (o: ApprovalOutcome) => void> }): (call: { id: string; tool: string; input: unknown; risk: string; summary: string; afterUntrusted?: string }) => Promise<ApprovalOutcome>;
-  resolveMemory(task: Task, text: string, askFn: ((prompt: string) => Promise<string>) | null): Promise<{ savedText: string | null }>;
-  classifyFn(signal: AbortSignal): (prompt: string) => Promise<string>;
+  resolveMemory(task: Task, text: string, decide: import('../memory/classify').MemoryDecide | null): Promise<{ savedText: string | null }>;
+  classifyFn(signal: AbortSignal): import('../memory/classify').MemoryDecide | null;
   recordRun(rec: { runId: string; kind: 'agent'; prompt: string; outcome: string; status: 'done' | 'error' | 'stopped'; undoable: boolean; taskId?: string; parentId?: string | null; origin?: string }): void;
   appendRunLog(runId: string, rec: Record<string, unknown>): void;
   undoAvailable(runId: string): boolean;
   deleteTaskAttachments(taskId: string): void;
   appBaseDir(): string;
   memoryStatusLine(savedText: string | null): string;
-  resolveMemory(task: Task, text: string, askFn: ((prompt: string) => Promise<string>) | null): Promise<{ savedText: string | null }>;
-  classifyFn(signal: AbortSignal): (prompt: string) => Promise<string>;
+  resolveMemory(task: Task, text: string, decide: import('../memory/classify').MemoryDecide | null): Promise<{ savedText: string | null }>;
+  classifyFn(signal: AbortSignal): import('../memory/classify').MemoryDecide | null;
 }
 
 let scheduler: Scheduler | null = null;

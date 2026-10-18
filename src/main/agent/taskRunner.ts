@@ -48,8 +48,8 @@ export interface TaskRunEnv {
   attachMetaFor: (prepared: PreparedTaskAttachment[]) => string | undefined;
   memoryForTask: (task: Task, text: string, cwd: string) => { block?: string; usedIds: string[]; protected: string[] };
   memStatus: (savedText: string | null) => string;
-  resolveMemory: (task: Task, text: string, askFn: ((prompt: string) => Promise<string>) | null) => Promise<{ savedText: string | null }>;
-  classifyFn: (signal: AbortSignal) => (prompt: string) => Promise<string>;
+  resolveMemory: (task: Task, text: string, decide: import('../memory/classify').MemoryDecide | null) => Promise<{ savedText: string | null }>;
+  classifyFn: (signal: AbortSignal) => import('../memory/classify').MemoryDecide | null;
   extras: () => Promise<{ tools: Tool[]; systemExtra: string }>;
   hooks: (cwd: string, signal: AbortSignal) => HookRunner | null;
   notify: (title: string, body: string, taskId?: string) => void;
@@ -92,7 +92,9 @@ export async function runScheduledTask(
     // as foreground runs: user message only, slash fallback when offline).
     let savedText: string | null = null;
     try {
-      const mr = await env.resolveMemory(task, task.prompt, env.apiKey ? env.classifyFn(state.controller.signal) : null);
+      // why: typed memory decision needs no provider key; classifyFn is null
+      // when no decision engine is configured (slash fallback, as foreground).
+      const mr = await env.resolveMemory(task, task.prompt, env.classifyFn(state.controller.signal));
       savedText = mr.savedText;
     } catch { /* memory never breaks runs */ }
     const memExtra = [mem.block, env.memStatus(savedText)].filter(Boolean).join('\n') || undefined;

@@ -3,6 +3,7 @@ import type {
   ContextSourceView,
   ChatMessage,
   Conversation,
+  DecisionAction,
   ExtAction,
   MemoryAction,
   MemoryPush,
@@ -79,7 +80,7 @@ export const IpcChannels = {
   runs: 'nexio:runs',
   memory: 'nexio:memory',
   memoryEvent: 'nexio:memory-event',
-  contextEvent: 'nexio:context-event',
+  decisions: 'nexio:decisions',  contextEvent: 'nexio:context-event',
   locale: 'nexio:locale',
   attachPick: 'nexio:attach-pick',
   attachProcess: 'nexio:attach-process',
@@ -210,6 +211,7 @@ export interface IpcChannelMap {
   attachClassify: { args: [input: { path: string }]; result: { verdict: string; reason?: string } };
   attachClear: { args: [runId: string]; result: boolean };
   memory: { args: [a: MemoryAction]; result: unknown };
+  decisions: { args: [a: DecisionAction]; result: unknown };
   tasks: { args: [a: TaskAction]; result: unknown };
   tasksChanged: { args: [{ rev: number }]; result: void };
   memoryEvent: { args: [{ runId?: string; requestId?: string; conversationId?: string; event: MemoryPush }]; result: void };

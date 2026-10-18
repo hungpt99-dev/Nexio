@@ -10,34 +10,6 @@ export interface ContextIntent {
   ambiguity?: string[];
 }
 
-const ROUTER_PROMPT =
-  'You route a short user request against on-screen context. Reply with exactly one line: ' +
-  'NEEDS:<comma list of selection,files,folder,clipboard,page or none> DEICTIC:<yes|no> [AMBIGUOUS:<comma list>]. ' +
-  'DEICTIC yes when the request uses pointing words (this, these, here, that, it referring to shown items) in ANY language. ' +
-  'List a source in NEEDS when the request needs it to be answered. ' +
-  'AMBIGUOUS lists the plausible sources when more than one fits and you cannot decide. ' +
-  'The user may have pasted the content inline (long text) — then NEEDS:none DEICTIC:no. ' +
-  'Examples (any language decides by meaning, never by verbs):\n' +
-  '"summarize this" + selection -> NEEDS:selection DEICTIC:yes\n' +
-  '"dịch đoạn này" + selection -> NEEDS:selection DEICTIC:yes\n' +
-  '"move these to Invoices" + files -> NEEDS:files DEICTIC:yes\n' +
-  '"organize this folder" + folder -> NEEDS:folder DEICTIC:yes\n' +
-  '"những file này là gì" + files -> NEEDS:files DEICTIC:yes\n' +
-  '"what is this page?" + page -> NEEDS:page DEICTIC:yes\n' +
-  '"rewrite what I copied" + clipboard -> NEEDS:clipboard DEICTIC:yes\n' +
-  '"summarize this" + selection,files -> NEEDS:selection,files DEICTIC:yes AMBIGUOUS:selection,files\n' +
-  '"what is the capital of France?" + selection -> NEEDS:none DEICTIC:no\n' +
-  '"summarize: <long pasted text>" + selection -> NEEDS:none DEICTIC:no\n' +
-  'Sources: ';
-
-function parseRouterReply(reply: string): ContextIntent {
-  const t = ` ${reply.trim()} `;
-  const needs = /NEEDS:([a-z,]*) /.exec(t)?.[1]?.split(',').filter((x) => ['selection', 'files', 'folder', 'clipboard', 'page'].includes(x)) as ContextSourceName[] || [];
-  const deictic = /DEICTIC:yes/.test(t);
-  const amb = /AMBIGUOUS:([a-z,]*) /.exec(`${t} `)?.[1]?.split(',').filter((x) => ['selection', 'files', 'folder', 'clipboard', 'page'].includes(x)) as ContextSourceName[] | undefined;
-  return { needsContext: needs, deictic, ...(amb?.length ? { ambiguity: amb } : {}) };
-}
-
 /** Metadata only — contents never reach the router. Offline-safe fallback. */
 export async function resolveContextIntent(
   text: string,
@@ -45,25 +17,33 @@ export async function resolveContextIntent(
   attached: ContextSourceName[],
   hasInlineContent: boolean,
   stagedCount: number,
-  askModel?: (prompt: string) => Promise<string>,
+  decide?: (text: string) => Promise<{ needsContext: string[]; deictic: boolean; ambiguity?: string[] } | null>,
 ): Promise<ContextIntent> {
   if (hasInlineContent || !text.trim()) return { needsContext: [], deictic: false };
   const avail = meta.sources;
-  if (!askModel) {
-    // No model call: safe default — proceed; attached context still applies.
+  if (!decide) {
+    // No decision engine: safe default — proceed; attached context still applies.
     return { needsContext: [], deictic: false };
   }
-  const desc = `selection(${meta.counts.selectionChars}ch),files(${meta.counts.files}),folder(${meta.isBrowser ? 'n/a' : 'yes'}),clipboard(${meta.counts.clipboardChars}ch),page(${meta.counts.pageChars}ch) from ${meta.appName}`;
+  const valid: ContextSourceName[] = ['selection', 'files', 'folder', 'clipboard', 'page'];
   try {
-    const reply = await askModel(`${ROUTER_PROMPT}${desc}. Attached: ${attached.join(',') || 'none'}. Staged files: ${stagedCount}. Request: ${text.trim().slice(0, 300)}`);
-    const parsed = parseRouterReply(reply);
-    // Only available sources count; staged files resolve "these" without context.
-    parsed.needsContext = parsed.needsContext.filter((s) => (avail as string[]).includes(s));
-    if (parsed.ambiguity) parsed.ambiguity = parsed.ambiguity.filter((s) => (avail as string[]).includes(s));
-    if (stagedCount && parsed.needsContext.includes('files')) {
-      parsed.needsContext = parsed.needsContext.filter((s) => s !== 'files');
+    // why: typed decision (context_route point), never an LLM writing
+    // "NEEDS:..." text we regex-parse. Fail-closed to the safe default.
+    const r = await decide(text.trim().slice(0, 2000));
+    if (!r) return { needsContext: [], deictic: false };
+    const needs = (r.needsContext || []).filter((s): s is ContextSourceName =>
+      valid.includes(s as ContextSourceName) && (avail as string[]).includes(s));
+    let ambiguity: ContextSourceName[] | undefined;
+    if (r.ambiguity?.length) {
+      const amb = r.ambiguity.filter((s): s is ContextSourceName =>
+        valid.includes(s as ContextSourceName) && (avail as string[]).includes(s));
+      if (amb.length) ambiguity = amb;
     }
-    return parsed;
+    if (stagedCount && needs.includes('files')) {
+      const rest = needs.filter((s) => s !== 'files');
+      return { needsContext: rest, deictic: r.deictic === true, ...(ambiguity ? { ambiguity } : {}) };
+    }
+    return { needsContext: needs, deictic: r.deictic === true, ...(ambiguity ? { ambiguity } : {}) };
   } catch {
     return { needsContext: [], deictic: false };
   }

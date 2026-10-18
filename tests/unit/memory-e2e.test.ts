@@ -58,14 +58,32 @@ function sseTurn(lines: string[]): Response {
 const realFetch = globalThis.fetch;
 let toolQueue: Response[] = [];
 let sseQueue: Response[] = [];
+let sysQueue: Response[] = [];
 const bodies: unknown[] = [];
+function sysAbstain(): Response {
+  return new Response(JSON.stringify({ answers: {} }), { status: 200 });
+}
+function sysChoice(qid: string, choice: string, confidence: number, extra: Record<string, unknown> = {}): Response {
+  return new Response(JSON.stringify({
+    answers: {
+      [qid]: { type: 'choice', choice, probabilities: { [choice]: confidence }, confidence },
+      ...extra,
+    },
+  }), { status: 200 });
+}
 function resetFetch() {
   toolQueue = [];
   sseQueue = [];
+  sysQueue = [];
   bodies.length = 0;
   globalThis.fetch = (async (_u: unknown, init: unknown) => {
     const body = JSON.parse(String((init as { body?: unknown }).body || '{}'));
     bodies.push(body);
+    if (body.questions) {
+      // typed decision call (System One shape): scripted answer or abstain.
+      if (!sysQueue.length) return sysAbstain();
+      return sysQueue.shift()!;
+    }
     if (body.stream) {
       if (!sseQueue.length) throw new Error('no scripted SSE response left');
       return sseQueue.shift()!;
@@ -73,6 +91,22 @@ function resetFetch() {
     if (!toolQueue.length) throw new Error('no scripted tool response left');
     return toolQueue.shift()!;
   }) as unknown as typeof fetch;
+}
+/** Enable the decision engine for one test (laya-profile loopback endpoint). */
+function enableDecisions() {
+  updateSettings(db(), {
+    decisions: {
+      order: ['e2e'],
+      endpoints: [{
+        id: 'e2e', kind: 'laya', baseUrl: 'http://127.0.0.1:9', model: 'laya-test',
+        timeoutMs: 2000, thresholds: { act: 0.85, confirm: 0.55 }, enabled: true, localOnly: true,
+      }],
+      toolScope: [], rules: [],
+    },
+  });
+}
+function disableDecisions() {
+  updateSettings(db(), { decisions: { order: [], endpoints: [], toolScope: [], rules: [] } });
 }
 afterEach(() => { globalThis.fetch = realFetch; });
 
@@ -246,9 +280,8 @@ describe('memory end-to-end through the real send handler', () => {
     addMessage(db(), conv, 'user', 'my first request about invoices');
     addMessage(db(), conv, 'assistant', 'ok');
     toolQueue.push(finalTurn('done here'));
-    // a stored key enables the one-tap classifier: it runs before the run and
-    // consumes the first scripted SSE (valid none-json keeps behavior unchanged)
-    sseQueue.push(sseTurn(['{"intent":"none","text":"","kind":"fact","language":"en"}']));
+    // the extractor consumes the first scripted SSE (typed decisions replaced
+    // the old classifier SSE call; offline it abstains without consuming)
     sseQueue.push(sseTurn(['I prefer PDF exports\n', 'Dark theme everywhere\n']));
     const p = listenerFor(IpcChannels.send)({ sender }, conv, 'one more invoice question', { explicit: true, mode: 'agent' });
     await p;
@@ -294,21 +327,30 @@ describe('memory recall: names across conversations', () => {
   function memSave(action: Record<string, unknown>) {
     return listenerFor(IpcChannels.memory)({ sender }, action) as Promise<any>;
   }
-  it('K. statement fires one-tap via classifier, never auto-saves', async () => {
+  it('K. statement fires one-tap via the decision engine, never auto-saves', async () => {
     resetFetch();
     setSecret(db(), apiKeyService('openai'), 'k');
-    const before = countMemories(db());
-      sseQueue.push(sseTurn(['{"intent":"remember","text":"Your name is Pham Thanh Hung","kind":"fact","language":"en","pin":true}']));
+    enableDecisions();
+    try {
+      const before = countMemories(db());
+      sysQueue.push(sysChoice('intent', 'remember', 0.95, {
+        kind: { type: 'choice', choice: 'fact', probabilities: { fact: 0.9 }, confidence: 0.9 },
+        identity: { type: 'noul', noul: 1 },
+      }));
       toolQueue.push(finalTurn('Nice to meet you!'));
       await send('my name is Pham Thanh Hung', { mode: 'chat' });
       const one = memEvents().find((e) => e.event.type === 'onetap');
-      expect(one?.event.text).toBe('Your name is Pham Thanh Hung');
+      // the engine chooses; the text stays the user's own words (never rewritten).
+      expect(one?.event.text).toBe('my name is Pham Thanh Hung');
       expect(one?.event.kind).toBe('fact');
       expect(one?.event.pin).toBe(true);
       expect(one?.event.lang).toBe('en');
       expect(countMemories(db())).toBe(before); // row shown, nothing stored
       expect(memEvents().some((e) => e.event.type === 'saved')).toBe(false);
+    } finally {
+      disableDecisions();
       setSecret(db(), apiKeyService('openai'), 'k'); // file key restored for later tests
+    }
   });
   it('L. Save stores a pinned fact; new chat recalls it with Used 1 memory', async () => {
     const saved = await memSave({ action: 'save', kind: 'fact', text: 'Your name is Pham Thanh Hung', pinned: true, source: 'user_approved' });
@@ -385,24 +427,29 @@ describe('memory recall: names across conversations', () => {
   it('Q. Not now sticks by hash; Vietnamese works', async () => {
     resetFetch();
     setSecret(db(), apiKeyService('openai'), 'k');
+    enableDecisions();
+    const viAnswer = () => sysChoice('intent', 'remember', 0.95, {
+      kind: { type: 'choice', choice: 'fact', probabilities: { fact: 0.9 }, confidence: 0.9 },
+      identity: { type: 'noul', noul: 1 },
+    });
     try {
-      const vi = '{"intent":"remember","text":"Your name is Hưng","kind":"fact","language":"vi","pin":true}';
-      sseQueue.push(sseTurn([vi]));
+      sysQueue.push(viAnswer());
       toolQueue.push(finalTurn('Chào bạn!'));
       pushes = [];
       await send('tôi tên là Hưng', { mode: 'chat' });
       const one = memEvents().find((e) => e.event.type === 'onetap');
-      expect(one?.event.text).toBe('Your name is Hưng');
+      expect(one?.event.text).toBe('tôi tên là Hưng');
       expect(one?.event.lang).toBe('vi');
       await memSave({ action: 'dismiss', hash: one.event.hash });
       resetFetch();
       setSecret(db(), apiKeyService('openai'), 'k');
-      sseQueue.push(sseTurn([vi]));
+      sysQueue.push(viAnswer());
       toolQueue.push(finalTurn('Chào bạn!'));
       pushes = [];
       await send('tôi tên là Hưng', { mode: 'chat' });
       expect(memEvents().some((e) => e.event.type === 'onetap')).toBe(false);
     } finally {
+      disableDecisions();
       deleteSecret(db(), apiKeyService('openai'));
     }
   });

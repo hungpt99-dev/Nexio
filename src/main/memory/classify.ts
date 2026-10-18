@@ -137,59 +137,44 @@ export function matchFastPath(text: string, locales: string[]): FastMatch | null
   return null;
 }
 
-const CLASSIFY_PROMPT = [
-  'You classify one user message for a memory feature. Reply with exactly one JSON object, no other text.',
-  'Schema: {"intent":"remember"|"forget"|"none","text":"...","kind":"preference"|"fact"|"folder_rule"|"procedure","language":"<BCP-47>","pin":true|false}',
-  '- intent "remember": the user states a durable fact about themselves (name, preference, rule, routine) OR explicitly asks to remember something. "text" is the thing itself in the user\'s own words, exactly as written (strip command wrappers like "remember that"; never translate, never rewrite into English, keep the original script), max 300 grapheme clusters.',
-  '- "pin": true for identity claims (names), otherwise false.',
-  '- intent "forget": the user asks to forget or delete a memory.',
-  '- intent "none": questions (anything ending in ?, "do you remember...?"), requests to act, chit-chat.',
-  '- "language": BCP-47 tag of the message (en, vi, es, zh, ...). NEVER invent facts: base "text" only on the message below.',
-  'Examples:',
-  '"my name is Ana" -> {"intent":"remember","text":"my name is Ana","kind":"fact","language":"en","pin":true}',
-  '"tôi tên là Hưng" -> {"intent":"remember","text":"tôi tên là Hưng","kind":"fact","language":"vi","pin":true}',
-  '"Recuerda que hablo español" -> {"intent":"remember","text":"hablo español","kind":"preference","language":"es"}',
-  '"我叫王芳" -> {"intent":"remember","text":"我叫王芳","kind":"fact","language":"zh","pin":true}',
-  '"do you remember my name?" -> {"intent":"none","text":"","kind":"fact","language":"en"}',
-  '"delete that file" -> {"intent":"none","text":"","kind":"fact","language":"en"}',
-  'Message (user-written, the ONLY source):',
-  '"""',
-].join('\n');
-
 const LANG_RE = /^[a-z]{2,3}(-[A-Za-z]{4})?(-[A-Z]{2})?$/;
 
 function validKind(k: unknown): ClassifiedMemory['kind'] {
   return k === 'preference' || k === 'fact' || k === 'folder_rule' || k === 'procedure' ? k : 'fact';
 }
 
+export interface MemoryDecision {
+  intent: 'remember' | 'forget' | 'none';
+  text: string;
+  kind: ClassifiedMemory['kind'];
+  language: string;
+  pin?: boolean;
+}
+
+/** Typed memory decision callback (classify_intent point). Null = abstain. */
+export type MemoryDecide = (text: string, context: string[]) => Promise<MemoryDecision | null>;
+
 /**
- * One cheap model call over the current + last 2 user messages.
- * Schema-validated; secrets/PII in `text` force intent 'none' (blocked).
- * Returns null when there is no provider to ask (offline) — callers fall
- * back to slash commands and never guess from words.
+ * Typed memory decision (classify_intent point) over the current + last 2
+ * user messages. Schema-validated; secrets/PII in `text` force 'none'.
+ * Returns null when no engine is configured (offline) — callers fall back to
+ * slash commands and never guess from words. No JSON parsing: the engine
+ * answers typed questions, it does not write text we parse.
  */
 export async function classifyMemoryIntent(
   text: string,
   recentUserTexts: string[],
-  askModel: ((prompt: string) => Promise<string>) | null,
+  decide: MemoryDecide | null,
 ): Promise<ClassifiedMemory | null> {
-  if (!askModel) return null;
-  const context = [...recentUserTexts.slice(-2), text].map((s) => String(s).slice(0, 500)).join('\n---\n');
-  let raw: string;
+  if (!decide) return null;
+  const context = [...recentUserTexts.slice(-2), text].map((s) => String(s).slice(0, 500));
+  let o: MemoryDecision | null;
   try {
-    raw = await askModel(`${CLASSIFY_PROMPT}${context}\n"""`);
+    o = await decide(text, context);
   } catch {
     return null;
   }
-  let o: Record<string, unknown>;
-  try {
-    const start = raw.indexOf('{');
-    const end = raw.lastIndexOf('}');
-    if (start < 0 || end <= start) return null;
-    o = JSON.parse(raw.slice(start, end + 1)) as Record<string, unknown>;
-  } catch {
-    return null;
-  }
+  if (!o) return null;
   const intent = o.intent === 'remember' || o.intent === 'forget' ? o.intent : 'none';
   // why: grapheme cap keeps emoji/combining marks whole (never UTF-16 slice).
   const outText = takeGraphemes(String(o.text || '').trim(), 300);

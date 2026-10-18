@@ -170,6 +170,25 @@ export interface Settings {
   contextNoticeDismissed?: boolean;
   /** Log file names (not just hashes) in run logs (default false). */
   contextSaveFileNames?: boolean;
+  /** Decision-model engines (System One: Jev cloud / Laya local / compatible).
+   * All OFF by default; natural language uses the normal chat turn until configured. */
+  decisions?: {
+    order: string[];
+    endpoints: Array<{
+      id: string;
+      kind: 'typesafe-jev' | 'laya' | 'compatible';
+      baseUrl: string;
+      model: string;
+      secretId?: string;
+      timeoutMs: number;
+      thresholds: { act: number; confirm: number };
+      enabled: boolean;
+      localOnly: boolean;
+    }>;
+    toolScope: string[];
+    rules: Array<{ id: string; on: string; action: unknown; enabled: boolean }>;
+    debugText?: boolean;
+  };
 }
 
 /** Context snapshot views (main -> renderer; labels only, content capped for preview). */
@@ -236,6 +255,17 @@ export type MemoryPush =
   | { type: 'blocked'; reason: string }
   | { type: 'forgetlist'; q: string; matches: Array<{ id: string; text: string }> }
   | { type: 'onetap'; kind: 'fact' | 'preference'; text: string; hash: string; pin: boolean; lang: string };
+
+/** Single-channel decision-engine management (the decisions dispatch channel). */
+export type DecisionAction =
+  | { action: 'test'; text: string }
+  | { action: 'audit'; limit?: number }
+  | { action: 'setKey'; endpointId: string; key: string }
+  | {
+      action: 'testEndpoint';
+      endpoint: { kind: 'typesafe-jev' | 'laya' | 'compatible'; baseUrl: string; model: string; timeoutMs?: number };
+    }
+  | { action: 'calibration'; pointId?: string };
 
 /** Single-channel task management (the tasks dispatch channel). Renderer-safe: plain data only. */
 export type TaskAction =

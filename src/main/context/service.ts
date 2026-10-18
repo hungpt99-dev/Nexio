@@ -47,7 +47,7 @@ export function logContextUse(runId: string, snap: ContextSnapshot, attached: Co
 export async function resolveContextForSend(
   s: Settings,
   text: string,
-  opts: { stagedCount?: number; db?: DatabaseSync; signal?: AbortSignal; askModel?: (prompt: string) => Promise<string>; autoAttach?: boolean } = {},
+  opts: { stagedCount?: number; db?: DatabaseSync; signal?: AbortSignal; decideContext?: (text: string) => Promise<{ needsContext: string[]; deictic: boolean; ambiguity?: string[] } | null>; autoAttach?: boolean } = {},
 ): Promise<ContextResolution> {
   const fallback: ContextResolution = {
     attached: [], meta: 'no live context', action: 'proceed',
@@ -64,7 +64,7 @@ export async function resolveContextForSend(
   // needs deixis detection); long ones are treated as self-contained.
   const shortEnough = text.trim().length <= 140;
   const intent = (meta.sources.length || shortEnough || (opts.stagedCount || 0) > 0)
-    ? await resolveContextIntent(text, meta, attached, hasInline, opts.stagedCount || 0, opts.askModel)
+    ? await resolveContextIntent(text, meta, attached, hasInline, opts.stagedCount || 0, opts.decideContext)
     : { needsContext: [], deictic: false };
   const block = attached.length ? buildUserContextBlock(snap, attached) : undefined;
   const base = { attached, meta: `Context: ${meta.sources.join(',') || 'none'} from ${meta.appName}; attached=${attached.join(',') || 'none'}`, intent, snapshotId: snap.id, ...(block ? { block } : {}) };

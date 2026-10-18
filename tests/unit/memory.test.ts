@@ -545,57 +545,58 @@ describe('folder rules file: approved lines enforce, rest is advisory', () => {
   });
 });
 
-describe('classifier: model verdicts across languages, validated', () => {
-  const ask = (reply: string) => async (_prompt: string) => reply;
+describe('classifier: typed engine verdicts across languages, validated', () => {
+  const decide = (d: { intent: 'remember' | 'forget' | 'none' | string; text: string; kind?: string; language?: string; pin?: string }) =>
+    async (_text: string, _ctx: string[]) => ({ intent: d.intent as 'remember' | 'forget' | 'none', text: d.text, kind: (d.kind || 'fact') as 'preference' | 'fact' | 'folder_rule' | 'procedure', language: d.language || 'und', ...(d.pin ? { pin: true as const } : {}) });
   it('accepts remember/forget/none in many languages', async () => {
-    const cases: Array<[string, string, string, string]> = [
-      ['{"intent":"remember","text":"my name is Ana","kind":"fact","language":"en","pin":true}', 'remember', 'my name is Ana', 'en'],
-      ['{"intent":"remember","text":"tôi tên là Hưng","kind":"fact","language":"vi","pin":true}', 'remember', 'tôi tên là Hưng', 'vi'],
-      ['{"intent":"remember","text":"hablo español","kind":"preference","language":"es"}', 'remember', 'hablo español', 'es'],
-      ['{"intent":"remember","text":"我叫王芳","kind":"fact","language":"zh","pin":true}', 'remember', '我叫王芳', 'zh'],
-      ['{"intent":"remember","text":"je préfère le thé","kind":"preference","language":"fr"}', 'remember', 'je préfère le thé', 'fr'],
-      ['{"intent":"remember","text":"ich trinke gern Kaffee","kind":"preference","language":"de"}', 'remember', 'ich trinke gern Kaffee', 'de'],
-      ['{"intent":"remember","text":"私の名前は田中です","kind":"fact","language":"ja","pin":true}', 'remember', '私の名前は田中です', 'ja'],
-      ['{"intent":"remember","text":"제 이름은 민준입니다","kind":"fact","language":"ko","pin":true}', 'remember', '제 이름은 민준입니다', 'ko'],
-      ['{"intent":"remember","text":"اسمي محمد","kind":"fact","language":"ar","pin":true}', 'remember', 'اسمي محمد', 'ar'],
-      ['{"intent":"remember","text":"मेरा नाम प्रिया है","kind":"fact","language":"hi","pin":true}', 'remember', 'मेरा नाम प्रिया है', 'hi'],
-      ['{"intent":"remember","text":"меня зовут Анна","kind":"fact","language":"ru","pin":true}', 'remember', 'меня зовут Анна', 'ru'],
-      ['{"intent":"remember","text":"benim adım Elif","kind":"fact","language":"tr","pin":true}', 'remember', 'benim adım Elif', 'tr'],
-      ['{"intent":"forget","text":"old address","kind":"fact","language":"de"}', 'forget', 'old address', 'de'],
-      ['{"intent":"forget","text":"eski adresimi unut","kind":"fact","language":"tr"}', 'forget', 'eski adresimi unut', 'tr'],
-      ['{"intent":"none","text":"","kind":"fact","language":"fr"}', 'none', '', 'fr'],
+    const cases: Array<[Record<string, string>, string, string, string]> = [
+      [{ intent: 'remember', text: 'my name is Ana', kind: 'fact', language: 'en', pin: '1' }, 'remember', 'my name is Ana', 'en'],
+      [{ intent: 'remember', text: 'tôi tên là Hưng', kind: 'fact', language: 'vi', pin: '1' }, 'remember', 'tôi tên là Hưng', 'vi'],
+      [{ intent: 'remember', text: 'hablo español', kind: 'preference', language: 'es' }, 'remember', 'hablo español', 'es'],
+      [{ intent: 'remember', text: '我叫王芳', kind: 'fact', language: 'zh', pin: '1' }, 'remember', '我叫王芳', 'zh'],
+      [{ intent: 'remember', text: 'je préfère le thé', kind: 'preference', language: 'fr' }, 'remember', 'je préfère le thé', 'fr'],
+      [{ intent: 'remember', text: 'ich trinke gern Kaffee', kind: 'preference', language: 'de' }, 'remember', 'ich trinke gern Kaffee', 'de'],
+      [{ intent: 'remember', text: '私の名前は田中です', kind: 'fact', language: 'ja', pin: '1' }, 'remember', '私の名前は田中です', 'ja'],
+      [{ intent: 'remember', text: '제 이름은 민준입니다', kind: 'fact', language: 'ko', pin: '1' }, 'remember', '제 이름은 민준입니다', 'ko'],
+      [{ intent: 'remember', text: 'اسمي محمد', kind: 'fact', language: 'ar', pin: '1' }, 'remember', 'اسمي محمد', 'ar'],
+      [{ intent: 'remember', text: 'मेरा नाम प्रिया है', kind: 'fact', language: 'hi', pin: '1' }, 'remember', 'मेरा नाम प्रिया है', 'hi'],
+      [{ intent: 'remember', text: 'меня зовут Анна', kind: 'fact', language: 'ru', pin: '1' }, 'remember', 'меня зовут Анна', 'ru'],
+      [{ intent: 'remember', text: 'benim adım Elif', kind: 'fact', language: 'tr', pin: '1' }, 'remember', 'benim adım Elif', 'tr'],
+      [{ intent: 'forget', text: 'old address', kind: 'fact', language: 'de' }, 'forget', 'old address', 'de'],
+      [{ intent: 'forget', text: 'eski adresimi unut', kind: 'fact', language: 'tr' }, 'forget', 'eski adresimi unut', 'tr'],
+      [{ intent: 'none', text: '', kind: 'fact', language: 'fr' }, 'none', '', 'fr'],
       // Mixed-language message keeps the user's own words verbatim.
-      ['{"intent":"remember","text":"my name is Hưng, tôi thích cà phê","kind":"fact","language":"vi","pin":true}', 'remember', 'my name is Hưng, tôi thích cà phê', 'vi'],
+      [{ intent: 'remember', text: 'my name is Hưng, tôi thích cà phê', kind: 'fact', language: 'vi', pin: '1' }, 'remember', 'my name is Hưng, tôi thích cà phê', 'vi'],
     ];
     for (const [reply, intent, text, language] of cases) {
-      const v = await classifyMemoryIntent('whatever', [], ask(reply));
+      const v = await classifyMemoryIntent('whatever', [], decide(reply));
       expect(v?.intent).toBe(intent);
       expect(v?.text).toBe(text);
       expect(v?.language).toBe(language);
     }
-    const pinned = await classifyMemoryIntent('x', [], ask('{"intent":"remember","text":"my name is Ana","kind":"fact","language":"en","pin":true}'));
+    const pinned = await classifyMemoryIntent('x', [], decide({ intent: 'remember', text: 'my name is Ana', kind: 'fact', language: 'en', pin: '1' }));
     expect(pinned?.pin).toBe(true);
   });
   it('rejects garbage, caps length, defaults language and kind', async () => {
-    expect(await classifyMemoryIntent('x', [], ask('not json at all'))).toBeNull();
-    expect(await classifyMemoryIntent('x', [], ask('{"intent":"maybe","text":"hi"}'))).toMatchObject({ intent: 'none' });
-    const long = await classifyMemoryIntent('x', [], ask(`{"intent":"remember","text":"${'a'.repeat(500)}","kind":"weird","language":"xx!!"}`));
+    expect(await classifyMemoryIntent('x', [], async () => { throw new Error('down'); })).toBeNull();
+    expect(await classifyMemoryIntent('x', [], async () => null)).toBeNull();
+    expect(await classifyMemoryIntent('x', [], decide({ intent: 'maybe', text: 'hi' }))).toMatchObject({ intent: 'none' });
+    const long = await classifyMemoryIntent('x', [], decide({ intent: 'remember', text: 'a'.repeat(500), kind: 'weird', language: 'xx!!' }));
     expect(long?.text.length).toBeLessThanOrEqual(300);
     expect(long?.kind).toBe('fact');
     expect(long?.language).toBe('und');
   });
   it('secrets in classifier text force intent none (blocked)', async () => {
-    const v = await classifyMemoryIntent('x', [], ask('{"intent":"remember","text":"api key sk-abc123XYZ456789DEF012345","kind":"fact","language":"en"}'));
+    const v = await classifyMemoryIntent('x', [], decide({ intent: 'remember', text: 'api key sk-abc123XYZ456789DEF012345', kind: 'fact', language: 'en' }));
     expect(v?.intent).toBe('none');
     expect(v?.blocked).toMatch(/secret/);
   });
-  it('no provider means no guessing (offline slash fallback only)', async () => {
+  it('no engine means no guessing (offline slash fallback only)', async () => {
     expect(await classifyMemoryIntent('my name is Ana', [], null)).toBeNull();
   });
-  it('typo-tolerant model output still parses (JSON embedded in chatter)', async () => {
-    const v = await classifyMemoryIntent('x', [], ask('Sure! {"intent":"forget","text":"old number","kind":"fact","language":"en"} bye'));
-    expect(v?.intent).toBe('forget');
-    expect(v?.text).toBe('old number');
+  it('engine abstention falls through (never guesses from words)', async () => {
+    const v = await classifyMemoryIntent('x', [], async () => null);
+    expect(v).toBeNull();
   });
 });
 
