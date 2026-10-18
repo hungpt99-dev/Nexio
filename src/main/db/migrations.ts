@@ -1,6 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite';
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 export function runMigrations(db: DatabaseSync): void {
   db.exec(`
@@ -32,6 +32,22 @@ export function runMigrations(db: DatabaseSync): void {
     );
     CREATE TABLE IF NOT EXISTS settings (
       key TEXT PRIMARY KEY, value TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS decisions (
+      id TEXT PRIMARY KEY, ts INTEGER NOT NULL, point TEXT NOT NULL,
+      engine TEXT NOT NULL, model TEXT NOT NULL, modelVersion TEXT NOT NULL DEFAULT '',
+      inputHash TEXT NOT NULL, probabilities TEXT NOT NULL, verdict TEXT NOT NULL,
+      choice TEXT, confidence REAL NOT NULL, latencyMs INTEGER NOT NULL, outcome TEXT
+    );
+    CREATE TABLE IF NOT EXISTS decision_calibrations (
+      key TEXT PRIMARY KEY, endpoint TEXT NOT NULL, model TEXT NOT NULL, version TEXT NOT NULL,
+      pointId TEXT NOT NULL, act REAL NOT NULL, confirm REAL NOT NULL,
+      falseActRate REAL NOT NULL, ece REAL NOT NULL, n INTEGER NOT NULL, fittedAt INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS model_calls (
+      id TEXT PRIMARY KEY, ts INTEGER NOT NULL, kind TEXT NOT NULL,
+      provider TEXT NOT NULL, model TEXT NOT NULL, inputHash TEXT NOT NULL,
+      latencyMs INTEGER NOT NULL, ok INTEGER NOT NULL, errorCode TEXT
     );
   `);
   const row = db.prepare('SELECT value FROM meta WHERE key = ?').get('schema_version') as

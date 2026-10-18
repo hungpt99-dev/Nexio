@@ -12,11 +12,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # macos-13 is x64 (Intel check); macos-latest is arm64.
-        os: [windows-latest, macos-latest, macos-13]
+        # macos-latest is arm64. macos-13 (Intel check) was dropped:
+        # GitHub retired the macos-13 runner image, so the job queued
+        # forever and blocked every run. Re-add an Intel leg when a
+        # replacement image exists.
+        os: [windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          # full history: gitleaks scans the PR diff range, which a
+          # depth-1 checkout cannot resolve (shallow boundary error).
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -25,9 +32,17 @@ jobs:
       - run: npm run assets
       - run: npm run assets:check
       - run: npm run typecheck
+      - run: npm run boundaries
       - run: npx vitest run
       - run: npm run build
       - run: npm run check:no-fakes
+      - name: Gitleaks scan
+        # once per run is enough (same content on every runner); macOS-only
+        # also sidesteps the action's broken windows_x64 asset download.
+        if: matrix.os == 'macos-latest'
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Smoke package (unsigned, no publish)
         run: npx electron-builder --dir
         env:
@@ -47,6 +62,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          # full history: gitleaks scans the PR diff range, which a
+          # depth-1 checkout cannot resolve (shallow boundary error).
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22

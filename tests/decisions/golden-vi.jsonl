@@ -1,0 +1,60 @@
+{"id": "vi-001", "text": "Mở thư mục tải xuống của tôi", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "app_open", "args": {"folder": "downloads"}}
+{"id": "vi-002", "text": "Tìm các file tôi đã sửa hôm nay trong Tài liệu", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "fs_search", "args": {"date": "today", "folder": "documents"}}
+{"id": "vi-003", "text": "Sắp xếp thư mục tải xuống theo loại file", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "fs_move"}
+{"id": "vi-004", "text": "Xóa hết ảnh chụp màn hình trong Ảnh từ tuần trước", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "fs_trash", "args": {"date": "last week"}}
+{"id": "vi-005", "text": "Thủ đô của Pháp là gì?", "route": "answer", "memory": "none", "context": [], "deictic": false}
+{"id": "vi-006", "text": "Giải thích cách hoạt động của thế chấp", "route": "answer", "memory": "none", "context": [], "deictic": false}
+{"id": "vi-007", "text": "Tóm tắt đoạn này giúp tôi", "route": "do", "memory": "none", "context": ["selection"], "deictic": true}
+{"id": "vi-008", "text": "Dịch đoạn này sang tiếng Anh", "route": "do", "memory": "none", "context": ["selection"], "deictic": true}
+{"id": "vi-009", "text": "Những file này là gì", "route": "do", "memory": "none", "context": ["files"], "deictic": true}
+{"id": "vi-010", "text": "Di chuyển mấy cái này sang Hóa đơn", "route": "do", "memory": "none", "context": ["files"], "deictic": true, "tool": "fs_move"}
+{"id": "vi-011", "text": "Tên tôi là Hưng", "route": "do", "memory": "remember", "context": [], "deictic": false}
+{"id": "vi-012", "text": "Hãy nhớ rằng tôi thích cà phê đen", "route": "do", "memory": "remember", "context": [], "deictic": false}
+{"id": "vi-013", "text": "Quên địa chỉ cũ của tôi đi", "route": "do", "memory": "forget", "context": [], "deictic": false}
+{"id": "vi-014", "text": "Bạn có nhớ tên tôi không?", "route": "answer", "memory": "none", "context": [], "deictic": false}
+{"id": "vi-015", "text": "Mở file tôi tải hôm qua", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "app_open", "args": {"date": "yesterday"}}
+{"id": "vi-016", "text": "Ổ đĩa nào đang đầy vậy", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "shell_run"}
+{"id": "vi-017", "text": "Tạo thư mục mới tên Hóa đơn ngoài màn hình nền", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "fs_write", "args": {"folder": "desktop"}}
+{"id": "vi-018", "text": "Tìm mọi hóa đơn trong tháng này", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "fs_search", "args": {"date": "this month"}}
+{"id": "vi-019", "text": "Dọn dẹp cái này giúp tôi", "route": "clarify", "memory": "none", "context": [], "deictic": true}
+{"id": "vi-020", "text": "Xử lý giúp mấy file kia", "route": "clarify", "memory": "none", "context": [], "deictic": true}
+{"id": "vi-021", "text": "Sao kê hôm qua ở đâu", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "fs_search", "args": {"date": "yesterday"}}
+{"id": "vi-022", "text": "Lưu đoạn này vào ghi chú", "route": "do", "memory": "none", "context": ["selection"], "deictic": true, "tool": "fs_write"}
+{"id": "vi-023", "text": "Trang này nói về cái gì vậy", "route": "do", "memory": "none", "context": ["page"], "deictic": true}
+{"id": "vi-024", "text": "Viết lại những gì tôi đã copy cho lịch sự", "route": "do", "memory": "none", "context": ["clipboard"], "deictic": false}
+{"id": "vi-025", "text": "Nhắc tôi xem lại cái này vào ngày mai", "route": "do", "memory": "remember", "context": ["selection"], "deictic": true, "args": {"date": "tomorrow"}}
+{"id": "vi-nodiac-001", "text": "Mo thu muc tai xuong cua toi", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "app_open", "args": {"folder": "downloads"}}
+{"id": "vi-nodiac-002", "text": "Tim cac file toi da sua hom nay", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "fs_search", "args": {"date": "today"}}
+{"id": "vi-nodiac-003", "text": "Thu do cua Phap la gi?", "route": "answer", "memory": "none", "context": [], "deictic": false}
+{"id": "vi-nodiac-004", "text": "Tom tat doan nay giup toi", "route": "do", "memory": "none", "context": ["selection"], "deictic": true}
+{"id": "vi-nodiac-005", "text": "Ten toi la Hung", "route": "do", "memory": "remember", "context": [], "deictic": false}
+{"id": "vi-nodiac-006", "text": "Hay nho rang toi thich ca phe den", "route": "do", "memory": "remember", "context": [], "deictic": false}
+{"id": "vi-nodiac-007", "text": "Quen dia chi cu cua toi di", "route": "do", "memory": "forget", "context": [], "deictic": false}
+{"id": "vi-nodiac-008", "text": "Ban co nho ten toi khong?", "route": "answer", "memory": "none", "context": [], "deictic": false}
+{"id": "vi-nodiac-009", "text": "Xoa het anh chup man hinh tuan truoc", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "fs_trash", "args": {"date": "last week"}}
+{"id": "vi-nodiac-010", "text": "Sap xep thu muc tai xuong theo loai file", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "fs_move"}
+{"id": "vi-nodiac-011", "text": "Nhung file nay la gi", "route": "do", "memory": "none", "context": ["files"], "deictic": true}
+{"id": "vi-nodiac-012", "text": "Dich doan nay sang tieng Anh", "route": "do", "memory": "none", "context": ["selection"], "deictic": true}
+{"id": "vi-nodiac-013", "text": "Mo file toi tai hom qua", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "app_open", "args": {"date": "yesterday"}}
+{"id": "vi-nodiac-014", "text": "Tao thu muc moi ten Hoa don", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "fs_write"}
+{"id": "vi-nodiac-015", "text": "Tim moi hoa don trong thang nay", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "fs_search", "args": {"date": "this month"}}
+{"id": "vi-nodiac-016", "text": "Don dep cai nay giup toi", "route": "clarify", "memory": "none", "context": [], "deictic": true}
+{"id": "vi-nodiac-017", "text": "Giai thich the chap hoat dong the nao", "route": "answer", "memory": "none", "context": [], "deictic": false}
+{"id": "vi-nodiac-018", "text": "Luu doan nay vao ghi chu", "route": "do", "memory": "none", "context": ["selection"], "deictic": true, "tool": "fs_write"}
+{"id": "vi-nodiac-019", "text": "Trang nay noi ve cai gi vay", "route": "do", "memory": "none", "context": ["page"], "deictic": true}
+{"id": "vi-nodiac-020", "text": "Nho toi xem lai cai nay vao ngay mai", "route": "do", "memory": "remember", "context": ["selection"], "deictic": true, "args": {"date": "tomorrow"}}
+{"id": "vi-mix-001", "text": "Mở my downloads folder giúp tôi", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "app_open"}
+{"id": "vi-mix-002", "text": "Find các file tôi sửa hôm nay", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "fs_search", "args": {"date": "today"}}
+{"id": "vi-mix-003", "text": "Tóm tắt this document cho tôi", "route": "do", "memory": "none", "context": ["selection"], "deictic": true}
+{"id": "vi-mix-004", "text": "Remember là tôi thích uống cà phê", "route": "do", "memory": "remember", "context": [], "deictic": false}
+{"id": "vi-mix-005", "text": "Thủ đô of France là gì?", "route": "answer", "memory": "none", "context": [], "deictic": false}
+{"id": "vi-mix-006", "text": "Delete hết screenshots tuần trước đi", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "fs_trash", "args": {"date": "last week"}}
+{"id": "vi-mix-007", "text": "Organize Downloads giùm theo file type", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "fs_move"}
+{"id": "vi-mix-008", "text": "Mở file I downloaded hôm qua", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "app_open", "args": {"date": "yesterday"}}
+{"id": "vi-mix-009", "text": "Dịch this sang tiếng Việt", "route": "do", "memory": "none", "context": ["selection"], "deictic": true}
+{"id": "vi-mix-010", "text": "Quên my old address đi", "route": "do", "memory": "forget", "context": [], "deictic": false}
+{"id": "vi-mix-011", "text": "Bạn có remember tên tôi không?", "route": "answer", "memory": "none", "context": [], "deictic": false}
+{"id": "vi-mix-012", "text": "Move mấy file này to Invoices", "route": "do", "memory": "none", "context": ["files"], "deictic": true, "tool": "fs_move"}
+{"id": "vi-mix-013", "text": "Tìm invoices tháng này", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "fs_search", "args": {"date": "this month"}}
+{"id": "vi-mix-014", "text": "Explain giùm đoạn code này", "route": "answer", "memory": "none", "context": ["selection"], "deictic": true}
+{"id": "vi-mix-015", "text": "Clean up cái này giùm", "route": "clarify", "memory": "none", "context": [], "deictic": true}

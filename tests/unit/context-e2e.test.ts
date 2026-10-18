@@ -35,7 +35,7 @@ describe('E2E (fake collectors + fake provider, no keys)', () => {
     snap.states.selection = 'available';
     snap.sources.push('selection');
     const res = await resolveContextForSend(settings({}), 'translate this', {
-      askModel: async () => 'NEEDS:selection DEICTIC:yes',
+      decideContext: async () => ({ needsContext: ['selection'], deictic: true }),
     });
     expect(res.action).toBe('proceed');
     expect(res.attached).toEqual(['selection']);
@@ -51,7 +51,7 @@ describe('E2E (fake collectors + fake provider, no keys)', () => {
     snap.states.files = 'available';
     snap.sources.push('files');
     const res = await resolveContextForSend(settings({}), 'move these to Invoices', {
-      askModel: async () => 'NEEDS:files DEICTIC:yes',
+      decideContext: async () => ({ needsContext: ['files'], deictic: true }),
     });
     expect(res.action).toBe('proceed');
     expect(res.block).toContain('a0.txt');
@@ -88,7 +88,7 @@ describe('E2E (fake collectors + fake provider, no keys)', () => {
     snap.states.files = 'available';
     snap.sources.push('files');
     const res = await resolveContextForSend(settings({ contextAutoAttach: 'ask' }), 'summarize this', {
-      askModel: async () => 'NEEDS:selection,files DEICTIC:yes AMBIGUOUS:selection,files',
+      decideContext: async () => ({ needsContext: ['selection', 'files'], deictic: true, ambiguity: ['selection', 'files'] }),
     });
     expect(res.action).toBe('choice');
     expect(res.choiceOptions).toEqual(['selection', 'files']);
@@ -97,7 +97,7 @@ describe('E2E (fake collectors + fake provider, no keys)', () => {
   it('nothing selected + deictic -> honest message path (empty)', async () => {
     beginSnapshot(APP, null);
     const res = await resolveContextForSend(settings({}), "what is this file?", {
-      askModel: async () => 'NEEDS:selection DEICTIC:yes',
+      decideContext: async () => ({ needsContext: ['selection'], deictic: true }),
     });
     expect(res.action).toBe('empty');
   });

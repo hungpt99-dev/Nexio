@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+- Decision Engine subsystem (`src/main/decisions/`): natural-language
+  decisions (Ask-vs-Do routing, command dispatch, memory intent, context
+  routing) are made by decision MODELS over typed choice/boolean/score
+  questions — never by an LLM writing JSON we parse. One System One HTTP
+  adapter (`POST /v1/systemone`) serves endpoint profiles: TypeSafe Jev
+  (cloud, opt-in, key in safeStorage), local Laya `laya[serve]` on
+  127.0.0.1, any compatible endpoint (incl. Ollama), plus an OFF-by-default
+  structured-model engine and a Needle-3-shaped on-device adapter slot
+  (interface + mock). Deterministic code resolves dates/times (EN+VI),
+  known folders, and catalog matches; BM25 shortlists 5–15 tools before the
+  model chooses. All engines OFF by default with per-endpoint calibration,
+  fail-closed fallthrough, and hash-only audit (`decisions`,
+  `decision_calibrations`, `model_calls` tables; `SCHEMA_VERSION` 2→3 with
+  the existing reset guard). Settings → Decisions holds engines, order,
+  thresholds, tool scope, rules and a test box ("type text → see the
+  decision, nothing executes") via the new `nexio:decisions` channel.
+  Replaces the three hand-rolled LLM-returns-JSON paths (intent word-parse,
+  memory JSON-extract, context NEEDS-regex); open-ended memory suggestions
+  stay with the main model. Golden set (`tests/decisions/`, 212 cases,
+  ≥60 VI, adversarial) + eval report (`docs/architecture/decisions.md`):
+  engines ship OFF because none is measured against the baseline yet.
+  Also: `npm run verify`, import-boundary lint, gitleaks config + CI step,
+  `THIRD-PARTY-NOTICES.md`, decision threat model in `SECURITY.md`.
+
 - Context awareness: pressing the hotkey captures a one-shot, in-memory
   `ContextSnapshot` (selected text, selected files, open folder, clipboard,
   app, browser page) that feeds the router and the agent, so "summarize

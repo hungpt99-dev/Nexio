@@ -63,6 +63,11 @@ export function apiKeyService(provider: string): string {
   return `apikey:${provider}`;
 }
 
+/** OS-store service id for a decision endpoint's key (cloud Jev etc.). */
+export function decisionKeyService(endpointId: string): string {
+  return `decision:${endpointId}`;
+}
+
 export function encryptText(s: string): { cipher: string; encrypted: boolean } {
   return modEncryptText(s);
 }

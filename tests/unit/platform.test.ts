@@ -158,7 +158,7 @@ describe('symlink escape (both adapters)', () => {
   // Pure-string matrix coverage (protected paths, NFC, case rules) runs everywhere above.
   const cases: Array<{ a: typeof win32Adapter; host: NodeJS.Platform | null }> = [
     { a: win32Adapter, host: 'win32' },
-    { a: darwinAdapter, host: null },
+    { a: darwinAdapter, host: 'darwin' },
   ];
   for (const { a, host } of cases) {
     it(`blocks links resolving outside roots on ${a.key}`, () => {

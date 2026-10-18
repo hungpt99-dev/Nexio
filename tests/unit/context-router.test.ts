@@ -18,13 +18,14 @@ describe('context router: metadata only, language-agnostic', () => {
     expect(r).toEqual({ needsContext: [], deictic: false });
   });
   it('empty sources: nothing to do', async () => {
-    const r = await resolveContextIntent('summarize this', meta({ sources: [] }), [], false, 0, async () => 'NEEDS:selection DEICTIC:yes');
+    const r = await resolveContextIntent('summarize this', meta({ sources: [] }), [], false, 0,
+      async () => ({ needsContext: ['selection'], deictic: true }));
     expect(r.needsContext).toEqual([]);
   });
-  it('parses NEEDS/DEICTIC/AMBIGUOUS, filters to available sources', async () => {
+  it('typed decision filters to available sources, keeps ambiguity', async () => {
     const r = await resolveContextIntent(
       'dịch cái này', meta(), [], false, 0,
-      async () => 'NEEDS:selection,page DEICTIC:yes AMBIGUOUS:selection,files',
+      async () => ({ needsContext: ['selection', 'page'], deictic: true, ambiguity: ['selection', 'files'] }),
     );
     expect(r.needsContext).toEqual(['selection']);
     expect(r.deictic).toBe(true);
@@ -33,7 +34,7 @@ describe('context router: metadata only, language-agnostic', () => {
   it('staged files satisfy a file need', async () => {
     const r = await resolveContextIntent(
       'move these', meta({ sources: ['files'] }), [], false, 2,
-      async () => 'NEEDS:files DEICTIC:yes',
+      async () => ({ needsContext: ['files'], deictic: true }),
     );
     expect(r.needsContext).toEqual([]);
     expect(r.deictic).toBe(true);

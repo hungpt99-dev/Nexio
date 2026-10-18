@@ -1,0 +1,95 @@
+{"id": "en-do-001", "text": "Open my downloads folder", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "app_open"}
+{"id": "en-do-002", "text": "Find files I changed today in Documents", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "fs_search", "args": {"date": "today"}}
+{"id": "en-do-003", "text": "Organize my Downloads by file type", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "fs_move"}
+{"id": "en-do-004", "text": "Delete all screenshots in Pictures from last week", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "fs_trash", "args": {"date": "last week"}}
+{"id": "en-do-005", "text": "Rename all screenshots in Pictures with dates", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "fs_move"}
+{"id": "en-do-006", "text": "Show me what is using my disk space", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "shell_run"}
+{"id": "en-do-007", "text": "Create a new folder called Invoices on the Desktop", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "fs_write", "args": {"folder": "desktop"}}
+{"id": "en-do-008", "text": "Move these files to the Documents folder", "route": "do", "memory": "none", "context": ["files"], "deictic": true, "tool": "fs_move"}
+{"id": "en-do-009", "text": "Copy the report to my Desktop", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "fs_copy", "args": {"folder": "desktop"}}
+{"id": "en-do-010", "text": "Search for budget spreadsheets", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "fs_search"}
+{"id": "en-do-011", "text": "List all PDF files in Downloads", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "fs_search", "args": {"folder": "downloads"}}
+{"id": "en-do-012", "text": "Open the last downloaded file", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "app_open", "args": {"folder": "downloads"}}
+{"id": "en-do-013", "text": "Empty the trash for files I deleted yesterday", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "fs_trash", "args": {"date": "yesterday"}}
+{"id": "en-do-014", "text": "Summarize this document for me", "route": "do", "memory": "none", "context": ["selection"], "deictic": true}
+{"id": "en-do-015", "text": "Translate this paragraph to Vietnamese", "route": "do", "memory": "none", "context": ["selection"], "deictic": true}
+{"id": "en-do-016", "text": "What is in this folder", "route": "do", "memory": "none", "context": ["folder"], "deictic": true, "tool": "fs_list"}
+{"id": "en-do-017", "text": "Rewrite what I copied in a polite tone", "route": "do", "memory": "none", "context": ["clipboard"], "deictic": false}
+{"id": "en-do-018", "text": "What is this page about", "route": "do", "memory": "none", "context": ["page"], "deictic": true}
+{"id": "en-do-019", "text": "Take a screenshot of this error and explain it", "route": "do", "memory": "none", "context": ["selection"], "deictic": true}
+{"id": "en-do-020", "text": "Back up my Documents to an archive", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "shell_run", "args": {"folder": "documents"}}
+{"id": "en-do-021", "text": "Show running processes using the most memory", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "shell_run"}
+{"id": "en-do-022", "text": "Find duplicate photos in Pictures", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "fs_search", "args": {"folder": "pictures"}}
+{"id": "en-do-023", "text": "Convert these images to PNG", "route": "do", "memory": "none", "context": ["files"], "deictic": true, "tool": "fs_move"}
+{"id": "en-do-024", "text": "Zip the project folder on my Desktop", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "shell_run", "args": {"folder": "desktop"}}
+{"id": "en-do-025", "text": "Read the meeting notes file", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "fs_read"}
+{"id": "en-do-026", "text": "Save this text to a file called notes.txt", "route": "do", "memory": "none", "context": ["selection"], "deictic": true, "tool": "fs_write"}
+{"id": "en-do-027", "text": "Append this to my journal", "route": "do", "memory": "none", "context": ["selection"], "deictic": true, "tool": "fs_write"}
+{"id": "en-do-028", "text": "Check my disk usage for the home folder", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "shell_run"}
+{"id": "en-do-029", "text": "Open the Gemini app", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "app_open"}
+{"id": "en-do-030", "text": "Close all windows of the browser", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "shell_run"}
+{"id": "en-do-031", "text": "Sort my music by artist into folders", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "fs_move", "args": {"folder": "music"}}
+{"id": "en-do-032", "text": "Find every invoice from this month", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "fs_search", "args": {"date": "this month"}}
+{"id": "en-do-033", "text": "Move files modified this week into a review folder", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "fs_move", "args": {"date": "this week"}}
+{"id": "en-do-034", "text": "What changed in Documents this week", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "fs_search", "args": {"date": "this week"}}
+{"id": "en-do-035", "text": "Open the terminal in the project directory", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "app_open"}
+{"id": "en-do-036", "text": "Copy the selected text to my notes", "route": "do", "memory": "none", "context": ["selection"], "deictic": true, "tool": "clipboard_write"}
+{"id": "en-do-037", "text": "Search the web for the latest TypeScript release", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "web_search"}
+{"id": "en-do-038", "text": "Fetch the content of this URL", "route": "do", "memory": "none", "context": ["selection"], "deictic": true, "tool": "web_fetch"}
+{"id": "en-do-039", "text": "Remind me to review this tomorrow", "route": "do", "memory": "remember", "context": ["selection"], "deictic": true, "args": {"date": "tomorrow"}}
+{"id": "en-do-040", "text": "Archive everything older than last month", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "fs_move", "args": {"date": "last month"}}
+{"id": "en-ans-001", "text": "What is the capital of France?", "route": "answer", "memory": "none", "context": [], "deictic": false}
+{"id": "en-ans-002", "text": "Explain how mortgages work", "route": "answer", "memory": "none", "context": [], "deictic": false}
+{"id": "en-ans-003", "text": "What is the difference between SSD and HDD?", "route": "answer", "memory": "none", "context": [], "deictic": false}
+{"id": "en-ans-004", "text": "Write a polite decline email for a job offer", "route": "answer", "memory": "none", "context": [], "deictic": false}
+{"id": "en-ans-005", "text": "How do I bake sourdough bread?", "route": "answer", "memory": "none", "context": [], "deictic": false}
+{"id": "en-ans-006", "text": "What does this error message mean?", "route": "answer", "memory": "none", "context": ["selection"], "deictic": true}
+{"id": "en-ans-007", "text": "Summarize the key points of this article", "route": "answer", "memory": "none", "context": ["selection"], "deictic": true}
+{"id": "en-ans-008", "text": "Is this email a scam?", "route": "answer", "memory": "none", "context": ["selection"], "deictic": true}
+{"id": "en-ans-009", "text": "Calculate 15 percent of 240", "route": "answer", "memory": "none", "context": [], "deictic": false}
+{"id": "en-ans-010", "text": "What is the square root of 144?", "route": "answer", "memory": "none", "context": [], "deictic": false}
+{"id": "en-ans-011", "text": "Who won the World Cup in 2018?", "route": "answer", "memory": "none", "context": [], "deictic": false}
+{"id": "en-ans-012", "text": "Define photosynthesis in simple terms", "route": "answer", "memory": "none", "context": [], "deictic": false}
+{"id": "en-ans-013", "text": "What are the symptoms of dehydration?", "route": "answer", "memory": "none", "context": [], "deictic": false}
+{"id": "en-ans-014", "text": "Compare Python and JavaScript for beginners", "route": "answer", "memory": "none", "context": [], "deictic": false}
+{"id": "en-ans-015", "text": "Why is the sky blue?", "route": "answer", "memory": "none", "context": [], "deictic": false}
+{"id": "en-ans-016", "text": "Do you remember my name?", "route": "answer", "memory": "none", "context": [], "deictic": false}
+{"id": "en-ans-017", "text": "What did I ask you yesterday?", "route": "answer", "memory": "none", "context": [], "deictic": false}
+{"id": "en-ans-018", "text": "Tell me a joke about programmers", "route": "answer", "memory": "none", "context": [], "deictic": false}
+{"id": "en-ans-019", "text": "What time is it in Tokyo right now?", "route": "answer", "memory": "none", "context": [], "deictic": false}
+{"id": "en-ans-020", "text": "How many days until Christmas?", "route": "answer", "memory": "none", "context": [], "deictic": false}
+{"id": "en-ans-021", "text": "Proofread this cover letter", "route": "answer", "memory": "none", "context": ["selection"], "deictic": true}
+{"id": "en-ans-022", "text": "What is the main argument here?", "route": "answer", "memory": "none", "context": ["selection"], "deictic": true}
+{"id": "en-ans-023", "text": "Is this contract clause risky?", "route": "answer", "memory": "none", "context": ["selection"], "deictic": true}
+{"id": "en-ans-024", "text": "Explain this code snippet", "route": "answer", "memory": "none", "context": ["selection"], "deictic": true}
+{"id": "en-ans-025", "text": "What is 12 times 12?", "route": "answer", "memory": "none", "context": [], "deictic": false}
+{"id": "en-amb-001", "text": "Clean this up", "route": "clarify", "memory": "none", "context": [], "deictic": true}
+{"id": "en-amb-002", "text": "Do the thing with the files", "route": "clarify", "memory": "none", "context": [], "deictic": true}
+{"id": "en-amb-003", "text": "Fix it", "route": "clarify", "memory": "none", "context": [], "deictic": true}
+{"id": "en-amb-004", "text": "Handle this for me", "route": "clarify", "memory": "none", "context": ["selection"], "deictic": true}
+{"id": "en-amb-005", "text": "Make it better", "route": "clarify", "memory": "none", "context": [], "deictic": true}
+{"id": "en-amb-006", "text": "Update the stuff", "route": "clarify", "memory": "none", "context": [], "deictic": false}
+{"id": "en-amb-007", "text": "Take care of those", "route": "clarify", "memory": "none", "context": [], "deictic": true}
+{"id": "en-amb-008", "text": "Process my documents", "route": "clarify", "memory": "none", "context": [], "deictic": false}
+{"id": "en-amb-009", "text": "Sort this out", "route": "clarify", "memory": "none", "context": [], "deictic": true}
+{"id": "en-amb-010", "text": "Do something about the downloads", "route": "clarify", "memory": "none", "context": [], "deictic": false}
+{"id": "en-amb-011", "text": "Remove the old one", "route": "clarify", "memory": "none", "context": [], "deictic": true}
+{"id": "en-amb-012", "text": "Change that setting", "route": "clarify", "memory": "none", "context": [], "deictic": true}
+{"id": "en-amb-013", "text": "Get rid of these", "route": "clarify", "memory": "none", "context": ["files"], "deictic": true}
+{"id": "en-amb-014", "text": "Send it over there", "route": "clarify", "memory": "none", "context": [], "deictic": true}
+{"id": "en-amb-015", "text": "Tidy my stuff please", "route": "clarify", "memory": "none", "context": [], "deictic": false}
+{"id": "en-typo-001", "text": "Opne my downlaods folder", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "app_open"}
+{"id": "en-typo-002", "text": "Fnd files I chnaged today", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "fs_search"}
+{"id": "en-typo-003", "text": "Orgenize my downlods by type", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "fs_move"}
+{"id": "en-typo-004", "text": "Delate all screenshots", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "fs_trash"}
+{"id": "en-typo-005", "text": "Serach for budget sheets", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "fs_search"}
+{"id": "en-typo-006", "text": "Whta is the captial of France?", "route": "answer", "memory": "none", "context": [], "deictic": false}
+{"id": "en-typo-007", "text": "Explan how mortages work", "route": "answer", "memory": "none", "context": [], "deictic": false}
+{"id": "en-typo-008", "text": "Transalte this to Vietnemase", "route": "do", "memory": "none", "context": ["selection"], "deictic": true}
+{"id": "en-typo-009", "text": "Summrize this documnet", "route": "do", "memory": "none", "context": ["selection"], "deictic": true}
+{"id": "en-typo-010", "text": "Creat a new foder called Invoices", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "fs_write"}
+{"id": "en-typo-011", "text": "Mvoe these to Documnets", "route": "do", "memory": "none", "context": ["files"], "deictic": true, "tool": "fs_move"}
+{"id": "en-typo-012", "text": "Claculate 15 precent of 240", "route": "answer", "memory": "none", "context": [], "deictic": false}
+{"id": "en-typo-013", "text": "Remeber my project folder is Acme", "route": "do", "memory": "remember", "context": [], "deictic": false}
+{"id": "en-typo-014", "text": "Forgot my old adress", "route": "do", "memory": "forget", "context": [], "deictic": false}
+{"id": "en-typo-015", "text": "Lsit PDF files in Downlaods", "route": "do", "memory": "none", "context": [], "deictic": false, "tool": "fs_search"}

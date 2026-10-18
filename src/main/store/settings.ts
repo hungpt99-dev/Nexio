@@ -74,6 +74,7 @@ export const DEFAULT_SETTINGS: Settings = {
   webSaveQueries: false,
   webConsent: {},
   webAllowlist: [],
+  decisions: { order: [], endpoints: [], toolScope: [], rules: [] },
 };
 
 export function validateSettings(s: Partial<Settings>): string[] {
@@ -145,6 +146,35 @@ export function validateSettings(s: Partial<Settings>): string[] {
   if (s.webSaveQueries !== undefined && typeof s.webSaveQueries !== 'boolean') errors.push('webSaveQueries must be boolean');
   if (s.webConsent !== undefined && (typeof s.webConsent !== 'object' || Array.isArray(s.webConsent))) errors.push('webConsent must be an object');
   if (s.webAllowlist !== undefined && (!Array.isArray(s.webAllowlist) || !s.webAllowlist.every((x) => typeof x === 'string'))) errors.push('webAllowlist must be an array of strings');
+  if (s.decisions !== undefined) {
+    const d = s.decisions as Record<string, unknown>;
+    if (typeof d !== 'object' || d === null || Array.isArray(d)) errors.push('decisions must be an object');
+    else {
+      if (d.order !== undefined && (!Array.isArray(d.order) || !d.order.every((x) => typeof x === 'string'))) errors.push('decisions.order must be string[]');
+      if (d.toolScope !== undefined && (!Array.isArray(d.toolScope) || !d.toolScope.every((x) => typeof x === 'string'))) errors.push('decisions.toolScope must be string[]');
+      if (d.rules !== undefined && !Array.isArray(d.rules)) errors.push('decisions.rules must be an array');
+      if (d.endpoints !== undefined) {
+        if (!Array.isArray(d.endpoints)) errors.push('decisions.endpoints must be an array');
+        else for (const e of d.endpoints) {
+          const ep = e as Record<string, unknown>;
+          if (typeof ep.id !== 'string' || !ep.id.trim()) { errors.push('decision endpoint id must be non-empty'); break; }
+          if (ep.kind !== 'typesafe-jev' && ep.kind !== 'laya' && ep.kind !== 'compatible') { errors.push('decision endpoint kind must be typesafe-jev, laya or compatible'); break; }
+          if (typeof ep.baseUrl !== 'string' || !/^https?:\/\/[^\s/$.?#].[^\s]*$/i.test(ep.baseUrl)) { errors.push('decision endpoint baseUrl must be a valid http(s) URL'); break; }
+          // why: local profiles must stay loopback — a local kind pointing at
+          // the network would leak typed user text off the machine.
+          if (ep.kind === 'laya' && ep.localOnly !== false) {
+            try {
+              const h = new URL(ep.baseUrl).hostname;
+              if (h !== '127.0.0.1' && h !== 'localhost' && h !== '::1') { errors.push('laya endpoints must be loopback URLs'); break; }
+            } catch { errors.push('decision endpoint baseUrl must be a valid http(s) URL'); break; }
+          }
+          if (typeof ep.model !== 'string' || !ep.model.trim()) { errors.push('decision endpoint model must be non-empty'); break; }
+          const t = ep.thresholds as { act?: unknown; confirm?: unknown } | undefined;
+          if (!t || typeof t.act !== 'number' || typeof t.confirm !== 'number' || t.act <= t.confirm || t.act > 1 || t.confirm < 0) { errors.push('decision endpoint thresholds need 0 <= confirm < act <= 1'); break; }
+        }
+      }
+    }
+  }
   return errors;
 }
 

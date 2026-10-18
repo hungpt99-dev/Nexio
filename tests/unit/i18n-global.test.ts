@@ -105,17 +105,17 @@ describe('memory intent: data packs + model call, no per-language regex', () => 
     expect(matchFastPath('remember that X', ['xx-none'])).not.toBeNull(); // 'en' fallback
     expect(matchFastPath('something entirely else', ['xx-none'])).toBeNull();
   });
-  it('offline means no guessing: null askModel -> null verdict', async () => {
+  it('offline means no guessing: null decide -> null verdict', async () => {
     expect(await classifyMemoryIntent('my name is Ana', [], null)).toBeNull();
     expect(await classifyMemoryIntent('tôi tên là Hưng', [], null)).toBeNull();
   });
   it('injection-shaped model text in any language is still secrets-blocked', async () => {
-    const ask = (reply: string) => async (_p: string) => reply;
-    const v = await classifyMemoryIntent('x', [], ask('{"intent":"remember","text":"api key sk-abc123XYZ456789DEF012345","kind":"fact","language":"en"}'));
+    const decide = (d: { intent: 'remember' | 'forget' | 'none'; text: string; kind?: 'fact'; language?: string }) => async () => d;
+    const v = await classifyMemoryIntent('x', [], decide({ intent: 'remember', text: 'api key sk-abc123XYZ456789DEF012345', kind: 'fact', language: 'en' }));
     expect(v?.intent).toBe('none');
     expect(v?.blocked).toBeTruthy();
     // Classifier output is schema-validated and grapheme-capped.
-    const emoji = await classifyMemoryIntent('x', [], ask(`{"intent":"remember","text":"${'😀'.repeat(400)}","kind":"fact","language":"und"}`));
+    const emoji = await classifyMemoryIntent('x', [], decide({ intent: 'remember', text: '😀'.repeat(400), kind: 'fact', language: 'und' }));
     expect(graphemeLength(emoji?.text || '')).toBeLessThanOrEqual(300);
   });
 });

@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { IpcChannels, IpcErrorEnvelope, IpcInvokeChannels, IpcPushChannels, IpcSendChannels } from '../shared/ipc-channels';
 import { getSettings, updateSettings, isKnownProvider } from './store/settings';
-import { getSecret, apiKeyService, isEncryptionAvailable } from './store/secrets';
+import { getSecret, apiKeyService, decisionKeyService, isEncryptionAvailable } from './store/secrets';
 import { createConversation, listConversations, addMessage, getMessages, deleteConversation } from './db/conversations';
 import { listTemplates, upsertTemplate, listWorkflows, render, getTemplate } from './db/templates';
 import { streamChat } from './ai/stream';
@@ -48,7 +48,8 @@ import { directSaveMemory } from './memory/tools';
 import { canReadMemory, retrieveMemories } from './memory/retrieve';
 import { isEnforcedRule, loadFolderRulesFile, memoryProtectedPaths, extractPathCandidate } from './memory/protect';
 import { extractCandidates } from './memory/extract';
-import { classifyMemoryIntent, matchFastPath, type ClassifiedMemory, type FastMatch } from './memory/classify';
+import { classifyMemoryIntent, matchFastPath, type ClassifiedMemory, type FastMatch, type MemoryDecide } from './memory/classify';
+import { routeDecideFor, memoryDecideFor, contextDecideFor, testDecision } from './decisions/wire';
 import { normalizeMemoryText, memoryHash as memoryTextHash } from './memory/types';
 import { isMemoryKind } from './memory/store';
 import type { MemoryKind, MemoryPush, MemoryScope } from '../shared/types';
@@ -81,7 +82,7 @@ import { decodeAttachmentText } from './attachments/decode';
 import { clearRunAttachments, registerRunAttachments } from './agent/tools/attachment_tools';
 import { VisionNotSupportedError } from './ai/providers/vision';
 import type { ContentPart } from './ai/providers/types';
-import type { ChatMessage, Mode, ProviderId, Settings, TaskAction, TaskRow } from '../shared/types';
+import type { ChatMessage, Mode, ProviderId, Settings, TaskAction, TaskRow, DecisionAction } from '../shared/types';
 import {
   initScheduler, initTaskWatchdog, pushTasksChanged, createUserTask, createSubtaskRecord, removeTask, clearQueue,
   resumeAll, discardWaiting, undoTaskFamily, lockHooksFor, pendingApprovalsFor,
@@ -514,19 +515,6 @@ export interface SendOpts {
   slash?: { command: string; args: string };
 }
 
-/** One cheap model call for uncertain intents (heuristic runs first). */
-async function classifyWithModel(
-  s: Settings, key: string, prompt: string, signal: AbortSignal,
-): Promise<string> {
-  let acc = '';
-  await streamChat(s.provider, {
-    apiKey: key, model: s.model, baseUrl: s.baseUrl, temperature: 0,
-    messages: [{ id: 'intent', role: 'user', content: prompt, createdAt: 0 }],
-    signal, onToken: (t) => { acc += t; },
-  });
-  return acc;
-}
-
 function routeStatus(sender: Electron.WebContents, id: string, status: 'doing' | 'answering'): void {
   try { sender.send(IpcChannels.routeStatus, { id, status }); } catch { /* window gone */ }
 }
@@ -820,13 +808,14 @@ function forgetMatches(d: DatabaseSync, q: string): Array<{ id: string; text: st
 
 /**
  * One combined memory-intent step per user message: data-driven fast path
- * first (explicit commands, works offline), else one model call in the
- * user's own language (skipped without a provider — slash fallback only).
+ * first (explicit commands, works offline), else one TYPED decision
+ * (classify_intent point — never an LLM writing JSON we parse; skipped
+ * without a configured engine — slash fallback only).
  * Sees ONLY user messages. Returns at most one outcome; never auto-saves.
  */
 export async function resolveMemoryIntent(
   d: DatabaseSync, s: Settings, text: string, userTexts: string[],
-  askFn: ((prompt: string) => Promise<string>) | null, uiLocale: string,
+  decide: MemoryDecide | null, uiLocale: string,
 ): Promise<ResolvedMemory> {
   try {
     const t = text.trim();
@@ -840,9 +829,9 @@ export async function resolveMemoryIntent(
       return { kind: 'explicit', outcome: commitFastRemember(d, s, fast) };
     }
     // Model path: statements only (questions recall, they don't store),
-    // gated by the one-tap switch. Offline (no askFn) → slash fallback only.
-    if (!askFn || s.memoryOneTap === false || /\?\s*$/.test(t)) return null;
-    const verdict = await classifyMemoryIntent(t, userTexts, askFn);
+    // gated by the one-tap switch. Offline (no engine) → slash fallback only.
+    if (!decide || s.memoryOneTap === false || /\?\s*$/.test(t)) return null;
+    const verdict = await classifyMemoryIntent(t, userTexts, decide);
     if (!verdict) return null;
     if (verdict.blocked) return { kind: 'blocked', reason: verdict.blocked };
     if (verdict.intent === 'none') return null;
@@ -981,12 +970,12 @@ async function runSend(
     } catch { /* logging never breaks the run */ }
   }
   const userParts = buildUserParts(text, prepared);
-  // On-screen context: metadata-only router; attached contents join the prompt.
+  // On-screen context: typed decision (context_route point); attached contents join the prompt.
   const ctxRes = await resolveContextForSend(s, text, {
     stagedCount: staged.length,
     db: d,
     signal: aborter.signal,
-    askModel: key ? (prompt) => classifyWithModel(s, key, prompt, aborter.signal) : undefined,
+    decideContext: contextDecideFor(d, s, storeMode, aborter.signal) || undefined,
   });
   if (!incognito && ctxRes.attached.length) {
     try { logContextUse(requestId, getSnapshot() as never, ctxRes.attached, s.contextSaveFileNames === true, 'send'); } catch { /* logging never breaks runs */ }
@@ -1017,9 +1006,10 @@ async function runSend(
   // Attachments skip clarify (empty+attach sends the default instruction).
   let effective = mode;
   if (mode !== 'chat' && !opts.explicit && !text.trim().startsWith('/') && !staged.length) {
-    const intent = await classifyIntent(text, {
-      askModel: (prompt) => classifyWithModel(s, key, prompt, aborter.signal),
-    });
+    // why: typed decision (route_mode point); no engine -> clarify, exactly
+    // like the old offline path. The decision never bypasses approvals.
+    const decideRoute = routeDecideFor(d, s, storeMode, aborter.signal);
+    const intent = await classifyIntent(text, decideRoute ? { decideRoute } : {});
     if (intent === 'clarify') {
       const q = clarifyQuestion(text);
       routeStatus(sender, requestId, 'answering');
@@ -1033,12 +1023,12 @@ async function runSend(
   }
   routeStatus(sender, requestId, effective === 'agent' ? 'doing' : 'answering');
   // Long-term memory: one combined intent step over the USER message only
-  // (fast data-driven path, else one model call; offline → slash fallback).
+  // (fast data-driven path, else one typed decision; offline → slash fallback).
   // Retrieval joins the system prompt when relevant. Slashes are renderer-side.
   const memMode = effective === 'agent' ? 'do' : 'ask';
   const userTexts = history.filter((m) => m.role === 'user').map((m) => String(m.content)).slice(0, -1).slice(-2);
   const resolved = await resolveMemoryIntent(d, s, text, userTexts,
-    key ? (prompt) => classifyWithModel(s, key, prompt, aborter.signal) : null,
+    memoryDecideFor(d, s, memMode, aborter.signal),
     uiLocaleTag(s));
   // Retrieval only where the block is actually injected (agent loop / Ask loop).
   // The plain-chat fallback has no system prompt to inject into.
@@ -1645,6 +1635,50 @@ function registerSettingsIpc(): void {
     return true;
   });
   typedHandle(IpcChannels.secretsStatus, vNone, () => secretsStatus(db()));
+  typedHandle(IpcChannels.decisions, vObj0, async (_e, a: DecisionAction) => {
+    const d = db();
+    const act = a as DecisionAction;
+    if (act.action === 'test') {
+      const s = getSettings(d);
+      return testDecision(d, s, String(act.text || '').slice(0, 500));
+    }
+    if (act.action === 'audit') {
+      const limit = Math.min(100, Math.max(1, act.limit || 20));
+      return db().prepare('SELECT ts, point, engine, model, verdict, choice, confidence, latencyMs, outcome FROM decisions ORDER BY ts DESC LIMIT ?').all(limit);
+    }
+    if (act.action === 'setKey') {
+      if (!act.endpointId || !act.key) throw new Error('Empty endpoint or key');
+      const id = decisionKeyService(String(act.endpointId));
+      try {
+        writeSecret(d, id, String(act.key));
+      } catch (e) {
+        if (toAppError(e).code === 'SECRET_UNAVAILABLE') {
+          writeSessionSecret(id, String(act.key));
+          clearReentry(id);
+          return true;
+        }
+        throw e;
+      }
+      clearReentry(id);
+      return true;
+    }
+    if (act.action === 'testEndpoint') {
+      const ep = act.endpoint;
+      const { systemOneTest } = await import('./decisions/systemone');
+      return systemOneTest({
+        baseUrl: String(ep.baseUrl),
+        model: String(ep.model),
+        timeoutMs: ep.timeoutMs || 8000,
+        thresholds: { act: 0.85, confirm: 0.55 },
+      }, { localOnly: ep.kind === 'laya' });
+    }
+    if (act.action === 'calibration') {
+      return act.pointId
+        ? db().prepare('SELECT * FROM decision_calibrations WHERE pointId = ?').all(String(act.pointId))
+        : db().prepare('SELECT * FROM decision_calibrations').all();
+    }
+    throw new Error('Unknown decisions action');
+  });
   typedHandle(IpcChannels.isEncryptionAvailable, vNone, () => isEncryptionAvailable());
   typedHandle(IpcChannels.locale, vNone, () => {
     const tag = getLocaleTag();
@@ -2001,7 +2035,7 @@ function registerAgentIpc(): void {
         const doIds = { runId, conversationId };
         const doUsers = history.filter((m) => m.role === 'user').map((m) => String(m.content)).slice(0, -1).slice(-2);
         const doResolved = await resolveMemoryIntent(d, s, text, doUsers,
-          key ? (prompt) => classifyWithModel(s, key, prompt, controller.signal) : null,
+          memoryDecideFor(d, s, 'do', controller.signal),
           uiLocaleTag(s));
         const doSavedText = pushResolvedMemory(sender, doIds, doResolved);
         const doMem = prepareMemory(d, s, { text, cwd, mode: 'do', locale: uiLocaleTag(s) });
@@ -2035,7 +2069,7 @@ function registerAgentIpc(): void {
           stagedCount: staged.length,
           db: d,
           signal: controller.signal,
-          askModel: key ? (prompt) => classifyWithModel(s, key, prompt, controller.signal) : undefined,
+          decideContext: contextDecideFor(d, s, 'do', controller.signal) || undefined,
         });
         if (actx.action !== 'proceed') {
           const amsg = actx.action === 'choice'
@@ -2642,12 +2676,12 @@ function taskHostApi(): TaskHostApi {
     registerRun: (runId, state) => { agentRuns.set(runId, state); },
     unregisterRun: (runId) => { agentRuns.delete(runId); },
     approvalWaiter: (state) => approvalWaiter(state),
-    resolveMemory: async (task, text, askFn) => {
+    resolveMemory: async (task, text, decide) => {
       try {
         const d = db();
         const s = getSettings(d);
         const sender = getPopup()?.webContents || null;
-        const resolved = await resolveMemoryIntent(d, s, text, [], askFn, uiLocaleTag(s));
+        const resolved = await resolveMemoryIntent(d, s, text, [], decide, uiLocaleTag(s));
         const savedText = sender ? pushResolvedMemory(sender, { runId: task.runId, conversationId: '' }, resolved) : null;
         void savedText;
         return { savedText };
@@ -2659,8 +2693,7 @@ function taskHostApi(): TaskHostApi {
     classifyFn: (signal) => {
       const d = db();
       const s = getSettings(d);
-      const key = getSecret(d, apiKeyService(s.provider)) || process.env[`${s.provider.toUpperCase()}_API_KEY`] || '';
-      return (prompt) => classifyWithModel(s, key, prompt, signal);
+      return memoryDecideFor(d, s, 'do', signal);
     },
     recordRun: (rec) => {
       try {
@@ -3019,14 +3052,9 @@ function registerContextIpc(): void {
     const snap = getSnapshot();
     const meta = snap ? snapshotMeta(snap) : { sources: [], counts: { selectionChars: 0, files: 0, clipboardChars: 0, pageChars: 0 }, appName: '', isBrowser: false };
     const { resolveContextIntent } = await import('./context/prompt');
-    let key = '';
-    try {
-      key = requireApiKey(d, s.provider);
-    } catch {
-      key = process.env[`${s.provider.toUpperCase()}_API_KEY`] || '';
-    }
+    // why: typed decision (context_route point); no engine -> safe default.
     return resolveContextIntent(String(text || ''), meta, snap ? [...snap.attached] : [], false, 0,
-      key ? (prompt: string) => classifyWithModel(s, key, prompt, new AbortController().signal) : undefined);
+      contextDecideFor(d, s, 'ask') || undefined);
   });
 }
 

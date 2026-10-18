@@ -68,10 +68,18 @@ const send = (method, params = {}) => new Promise((resolve, reject) => {
   pending.set(myId, (m) => { clearTimeout(to); resolve(m); });
   ws.send(JSON.stringify({ id: myId, method, params }));
 });
-const ev = async (expr) => {
-  const r = await send('Runtime.evaluate', { expression: expr, returnByValue: true, awaitPromise: true });
-  if (r.result?.exceptionDetails) throw new Error('eval: ' + JSON.stringify(r.result.exceptionDetails).slice(0, 300));
-  return r.result.result.value;
+const ev = async (expr, retries = 5) => {
+  // why: CDP can answer {id, error} transiently after reload/navigation
+  // (destroyed execution context) — retry instead of failing the smoke.
+  for (let i = 0; ; i++) {
+    const r = await send('Runtime.evaluate', { expression: expr, returnByValue: true, awaitPromise: true });
+    if (r.result) {
+      if (r.result.exceptionDetails) throw new Error('eval: ' + JSON.stringify(r.result.exceptionDetails).slice(0, 300));
+      return r.result.result.value;
+    }
+    if (i >= retries) throw new Error('eval no result after retries: ' + JSON.stringify(r).slice(0, 200));
+    await sleep(500);
+  }
 };
 const snap = () => ev(`(async () => JSON.stringify({
   assistant: [...document.querySelectorAll('#messages .msg.assistant')].map((m) => m.textContent || ''),
@@ -113,7 +121,10 @@ const snap = () => ev(`(async () => JSON.stringify({
     await sleep(3000);
     await connect();
     await ev(`(() => { document.getElementById('input').focus(); try { selectMode('agent'); } catch {} return 1; })()`);
-    await send('Input.insertText', { text: 'hello' });
+    // why: path-like text routes to act structurally (no decision engine in
+    // CI), so the smoke drives a real Do loop; the fake answers with no tool
+    // calls and the canned final text.
+    await send('Input.insertText', { text: 'hello ./notes.txt' });
     await sleep(300);
     await send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
     await sleep(150);
@@ -122,7 +133,12 @@ const snap = () => ev(`(async () => JSON.stringify({
     let last = '';
     for (;;) {
       await sleep(2000);
-      last = await snap();
+      try {
+        last = await snap();
+      } catch (e) {
+        if (Date.now() > deadline) throw new Error('no answer within 30s (stuck run): ' + e.message);
+        continue; // transient CDP error — keep polling until the deadline
+      }
       const s = JSON.parse(last);
       const answered = s.assistant.some((t) => t.includes('hello to you too'));
       if (answered && s.terminal && !s.stopVisible) {

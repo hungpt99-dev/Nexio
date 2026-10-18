@@ -1,7 +1,7 @@
 {
   "name": "nexio",
   "version": "0.1.0",
-  "description": "Nexio — a new way to interact with your computer.",
+  "description": "Nexio \u2014 a new way to interact with your computer.",
   "author": "Nexio",
   "license": "MIT",
   "main": "dist/main/main.js",
@@ -20,7 +20,9 @@
     "check:no-fakes": "node scripts/check-no-fakes.mjs",
     "smoke": "node e2e/smoke-hello.js",
     "dist": "npm run build:main && npm run build:renderer && electron-builder",
-    "typecheck": "tsc -p tsconfig.main.json --noEmit"
+    "typecheck": "tsc -p tsconfig.main.json --noEmit",
+    "verify": "npm run typecheck && node scripts/check-boundaries.mjs && npx vitest run && npm run build && npm run check:no-fakes",
+    "boundaries": "node scripts/check-boundaries.mjs"
   },
   "devDependencies": {
     "@fontsource/geist": "^5.3.0",
