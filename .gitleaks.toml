@@ -4,5 +4,5 @@ useDefault = true
 
 [allowlist]
 description = "test fixtures and docs"
-paths = ["tests/**", "docs/**", "e2e/**"]
-regexes = ["sk-abc123XYZ456789DEF012345", "keyless-local"]
+paths = ['tests\/.*', 'docs\/.*', 'e2e\/.*']
+regexes = ['sk-abc123XYZ456789DEF012345', 'keyless-local']
