@@ -134,4 +134,25 @@ describe('osascript record/list parsing', () => {
     expect(parseOsaList('{"a", "b, c"}')).toEqual(['a', 'b, c']);
     expect(parseOsaList('')).toEqual([]);
   });
+
+  // why: Chrome ships com.google.Chrome (capital C); the page reader used
+  // to exact-match lowercase ids and reported real Chrome as unsupported.
+  it('matches the real mixed-case Chrome bundle id', async () => {
+    const { browserPageTarget } = await import('../../src/main/platform/context-darwin');
+    expect(browserPageTarget('com.google.Chrome')).toEqual({ kind: 'chrome', appName: 'Google Chrome' });
+    expect(browserPageTarget('com.google.chrome')).toEqual({ kind: 'chrome', appName: 'Google Chrome' });
+    expect(browserPageTarget('com.apple.safari')).toEqual({ kind: 'safari' });
+    expect(browserPageTarget('org.mozilla.firefox')).toBeNull();
+    expect(browserPageTarget('')).toBeNull();
+  });
+
+  // why: a readable element with no selected text is empty, not unsupported.
+  it('distinguishes nothing-selected from unsupported selection', async () => {
+    const { selectionReadForRaw } = await import('../../src/main/platform/context-darwin');
+    expect(selectionReadForRaw('NOSEL')).toEqual({ ok: false, skip: 'empty' });
+    expect(selectionReadForRaw('NONE')).toEqual({ ok: false, skip: 'unsupported_app' });
+    expect(selectionReadForRaw('SECURE')).toEqual({ ok: false, skip: 'password_field' });
+    expect(selectionReadForRaw('TEXT:hello')).toEqual({ ok: true, text: 'hello' });
+    expect(selectionReadForRaw('TEXT:   ')).toEqual({ ok: false, skip: 'empty' });
+  });
 });

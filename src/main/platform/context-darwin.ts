@@ -3,10 +3,13 @@ import type { ActiveWindow, BrowserPageRead, SelectedFilesRead, SelectionRead } 
 const BROWSER_IDS = ['com.google.chrome', 'com.microsoft.edgemac', 'org.mozilla.firefox', 'com.brave.browser', 'com.operasoftware.opera', 'company.thebrowser.arc', 'org.chromium.chromium', 'com.apple.safaritechnology-preview'];
 const SAFARI_IDS = ['com.apple.safari', 'com.apple.safaritechnology-preview'];
 
-function runOsaText(signal: AbortSignal, script: string, timeoutMs: number): Promise<string> {
+function runOsaText(signal: AbortSignal, script: string, timeoutMs: number, form: 'record' | 'text' = 'record'): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     const { execFile } = require('node:child_process') as typeof import('node:child_process');
-    const child = execFile('osascript', ['-s', 's', '-e', script], { timeout: timeoutMs }, (err, stdout) => {
+    // why: -s s prints records in parseable source form, but it also wraps
+    // bare-string returns in quotes — string-marker protocols use text form.
+    const args = form === 'record' ? ['-s', 's', '-e', script] : ['-e', script];
+    const child = execFile('osascript', args, { timeout: timeoutMs }, (err, stdout) => {
       if (signal.aborted) return reject(new Error('Aborted'));
       if (err && !String(stdout || '').trim()) return reject(err);
       resolve(String(stdout || ''));
@@ -112,26 +115,35 @@ export async function macReadSelection(pid: number, signal: AbortSignal): Promis
     'end try',
     'try',
     'set t to value of attribute "AXSelectedText" of fe',
-    'if t is missing value then return "NONE"',
+    'if t is missing value then return "NOSEL"',
     'return "TEXT:" & t',
     'on error',
-    'return "NONE"',
+    'return "NOSEL"',
     'end try',
     'end tell',
   ].join('\n');
   let raw: string;
   try {
-    raw = (await runOsaText(signal, script, 4000)).trim();
+    raw = (await runOsaText(signal, script, 4000, 'text')).trim();
   } catch {
     return { ok: false, skip: 'unsupported_app' };
   }
-  const s = String(raw ?? '');
+  return selectionReadForRaw(raw);
+}
+
+/** Map the raw selection-probe marker to a read. Exported for tests. */
+export function selectionReadForRaw(raw: string): SelectionRead {
+  const s = String(raw ?? '').trim();
   if (s === 'SECURE') return { ok: false, skip: 'password_field' };
   if (s.startsWith('TEXT:')) {
     const t = s.slice(5);
     if (!t.trim()) return { ok: false, skip: 'empty' };
     return { ok: true, text: t };
   }
+  // why: NOSEL means the focused element was readable but exposes no
+  // selected text (nothing selected) — empty, not an unsupported app.
+  // NONE means the element itself was unreachable — keep unsupported_app.
+  if (s === 'NOSEL') return { ok: false, skip: 'empty' };
   return { ok: false, skip: 'unsupported_app' };
 }
 
@@ -163,8 +175,9 @@ export async function macReadSelectedFiles(signal: AbortSignal): Promise<Selecte
   } catch {
     return { ok: false, skip: 'timeout' };
   }
-  if (raw === 'NOAUTH') return { ok: false, skip: 'no_permission' };
-  if (!raw || raw === 'NONE') return { ok: false, skip: 'empty' };
+  // why: record form quotes bare-string returns, so match markers quoted too.
+  if (raw === 'NOAUTH' || raw === '"NOAUTH"') return { ok: false, skip: 'no_permission' };
+  if (!raw || raw === 'NONE' || raw === '"NONE"') return { ok: false, skip: 'empty' };
   const rec = parseOsaRecord(raw);
   const files = parseOsaList(rec.files || '').map((fp) => ({ path: fp, isDir: false }));
   if (!files.length) return { ok: false, skip: 'empty' };
@@ -182,12 +195,24 @@ const CHROME_LIKE: Record<string, string> = {
   'org.chromium.chromium': 'Chromium',
 };
 
+/** Resolve which scriptable browser target a window id maps to.
+ *  Real bundle ids are not all lowercase (Chrome ships com.google.Chrome),
+ *  so match case-insensitively. Exported for tests. */
+export function browserPageTarget(winId: string): { kind: 'chrome'; appName: string } | { kind: 'safari' } | null {
+  const id = String(winId || '').toLowerCase();
+  const appName = CHROME_LIKE[id];
+  if (appName) return { kind: 'chrome', appName };
+  if (SAFARI_IDS.includes(id)) return { kind: 'safari' };
+  return null;
+}
+
 export async function macReadBrowserPage(win: ActiveWindow, signal: AbortSignal): Promise<BrowserPageRead> {
   // Per-browser AppleScript (needs Automation for that browser). Firefox
   // exposes no scriptable URL — unsupported_app.
-  const appName = CHROME_LIKE[win.id];
+  const target = browserPageTarget(win.id);
   let script: string;
-  if (appName) {
+  if (target?.kind === 'chrome') {
+    const appName = target.appName;
     script = [
       `tell application "${appName}"`,
       'try',
@@ -199,7 +224,7 @@ export async function macReadBrowserPage(win: ActiveWindow, signal: AbortSignal)
       'end try',
       'end tell',
     ].join('\n');
-  } else if (SAFARI_IDS.includes(win.id)) {
+  } else if (target?.kind === 'safari') {
     script = [
       'tell application "Safari"',
       'try',
@@ -220,7 +245,7 @@ export async function macReadBrowserPage(win: ActiveWindow, signal: AbortSignal)
   } catch {
     return { ok: false, skip: 'timeout' };
   }
-  if (!raw || raw === 'NONE' || raw === 'NOAUTH') return { ok: false, skip: raw === 'NOAUTH' ? 'no_permission' : 'empty' };
+  if (!raw || raw === 'NONE' || raw === '"NONE"' || raw === 'NOAUTH') return { ok: false, skip: raw === 'NOAUTH' ? 'no_permission' : 'empty' };
   const j = parseOsaRecord(raw);
   if (!j.u) return { ok: false, skip: 'empty' };
   const url = String(j.u);
