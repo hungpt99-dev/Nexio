@@ -209,3 +209,36 @@ Do not include keys, tokens, or personal data in reports.
   one-line confirm after a local read). Tracking params are stripped;
   the UI fetches no favicons/images. Queries are logged only when the
   user enables **Save search queries**. See `docs/web-search.md`.
+
+## Decision layer (decision models, OFF by default)
+
+- Decisions are PROPOSALS, never permissions: a decision-model verdict
+  (`act | confirm | fallthrough`) never bypasses tool validation, path
+  confinement, risk policy or approval cards. Models may only make Nexio MORE
+  cautious (raise to confirm), never less. Destructive actions always confirm.
+- Fail-closed: endpoint error, timeout, schema violation, unknown choice,
+  abstention (`__none__` wins) or no configured engine all fall through to
+  the normal chat/agent turn. A model's own reply can never arm a side effect.
+- Inputs: only the user's own typed text plus minimal context (mode, names
+  and descriptions of in-scope tools). File contents, web pages, MCP output,
+  attachment text and model output NEVER enter a decision endpoint. No engine
+  sees disabled tools, and the shortlist never changes a risk class.
+- Prompt injection: the 25-string adversarial golden set must stay
+  zero-false-act. Injected "instructions" inside typed text are decided as
+  chat/clarify, and even a wrong `act`-route still faces the full approval
+  layer. Custom rules (`decisions.rules`) can `run` (validated + approved),
+  `route`, `notify` or `tag` — no rule may auto-approve or bypass the kill
+  switch.
+- Third-party data flow: TypeSafe Jev (cloud, opt-in) sends the typed user
+  text to a third party — Settings shows this notice before enabling; the
+  key lives in safeStorage (`decision:<endpointId>`). Laya runs loopback-only
+  (`laya[serve]` on 127.0.0.1 + random port + token); a local profile
+  pointing at non-loopback is refused before any byte leaves. Weights are
+  never bundled; download is explicit user action with license + checksum.
+- Calibration: thresholds are per (endpoint, model, version); a name or
+  version change requires re-calibration (`calibrationFresh`). Uncalibrated
+  probabilities are treated as untrustworthy (abstain-heavy defaults).
+- Audit: every decision logs point, engine, model/version, input HASH,
+  per-option probabilities, verdict, outcome and latency (`decisions` table)
+  — never raw text (unless the explicit debug option is on), never keys.
+  See `docs/architecture/decisions.md`.

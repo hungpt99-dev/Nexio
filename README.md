@@ -68,8 +68,10 @@ Provider usage may incur charges. File bytes and message text are sent to the co
 
 ## Feature highlights
 
-### Ask vs Do, with an auto-router
-Ask answers questions read-only (8 tool calls / 60 s cap, no approval cards ever). Do plans and acts with file, clipboard, app, shell, and attachment tools. Undecided? The router picks: heuristics first, one cheap model call when uncertain, footer shows `Doing` / `Answering`. `Tab` or `Alt+M` switches explicitly; attachments skip clarification.
+### Ask vs Do, with a decision-model router
+Ask answers questions read-only (8 tool calls / 60 s cap, no approval cards ever). Do plans and acts with file, clipboard, app, shell, and attachment tools. Undecided? The router picks: structural fast path first, then a typed Decision Engine call (`route_mode`) when one is configured in Settings → Decisions — all engines OFF by default, so out of the box uncertain input asks you. Exact `/commands` always work. Footer shows `Doing` / `Answering`. `Tab` or `Alt+M` switches explicitly; attachments skip clarification.
+
+Decisions are proposals, never permissions: every verdict still passes validation, path confinement and approval cards. Each decision is audited (hashes only) with a `Fast path · engine · confidence · ms` chip. No LLM ever writes JSON for routing, memory intent or context routing — those are typed `choice/boolean/score` questions with an explicit abstain option. See `docs/architecture/decisions.md`.
 
 ### Approvals and Undo
 Write and destructive tools park in `waiting_approval` with the exact action shown — hooks can only block or force approval, never grant it. Reversible ops (`fs_move`, `fs_copy`, new-file `fs_write`, `clipboard_write`) journal per run and undo in reverse order with precondition checks. Deletes use the Recycle Bin (restore manually); shell and MCP tools are never undoable.
@@ -187,7 +189,7 @@ Packaging: `npm run dist` builds the Windows installer + `Nexio-portable.exe` an
 
 v0.1.0 pre-release / experimental. What works today: popup / hotkey / tray / pin, Ask + streaming + cancel, auto-router, slash + templates, workflows, local history, `Tab` switching, built-in Do loop with approvals + run log + Undo, Recycle Bin deletes, kill switch, attachments pipeline, long-term memory + incognito, parallel tasks + subtasks, skills / MCP / hooks (install OFF), onboarding, EN + VI UI with 15-locale intent packs.
 
-Experimental or partial: semantic memory search (setting exists, retrieval stays FTS until an embeddings backend is wired); project memory scopes (type exists, no project ids flow yet); Office-doc understanding without `localTextFallback` (provider-native images/PDFs only); Anthropic model listing (no list endpoint — type the model name).
+Experimental or partial: decision-model engines (all OFF by default; Jev/Laya/structured adapters ship, no endpoint measured in this environment — see `docs/architecture/decisions.md`); tool-retrieval recall@10 is 0.912 vs the 0.95 target (lexical only); semantic memory search (setting exists, retrieval stays FTS until an embeddings backend is wired); project memory scopes (type exists, no project ids flow yet); Office-doc understanding without `localTextFallback` (provider-native images/PDFs only); Anthropic model listing (no list endpoint — type the model name).
 
 Known issues: full `vitest` suite is red on `master` (stale CSS assertions plus `node:sqlite` needing Node >= 22.5 outside the packaged app); macOS `icon.icns` only builds on macOS (`npm run assets` needs `iconutil`); Linux is not supported (Windows + macOS only); unsigned builds show OS warnings.
 
