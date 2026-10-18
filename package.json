@@ -21,8 +21,9 @@
     "smoke": "node e2e/smoke-hello.js",
     "dist": "npm run build:main && npm run build:renderer && electron-builder",
     "typecheck": "tsc -p tsconfig.main.json --noEmit",
-    "verify": "npm run typecheck && node scripts/check-boundaries.mjs && npx vitest run && npm run build && npm run check:no-fakes",
-    "boundaries": "node scripts/check-boundaries.mjs"
+    "verify": "npm run typecheck && node scripts/check-boundaries.mjs && node scripts/check-claims.mjs && npx vitest run && npm run build && npm run check:no-fakes",
+    "boundaries": "node scripts/check-boundaries.mjs",
+    "claims": "node scripts/check-claims.mjs"
   },
   "devDependencies": {
     "@fontsource/geist": "^5.3.0",

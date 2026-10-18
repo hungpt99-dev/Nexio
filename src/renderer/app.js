@@ -727,6 +727,18 @@ function renderWebResults(host, r, q) {
   host.appendChild(list);
   try { agentScroll(); requestResize(); } catch (e) {}
 }
+/** Screen Recording denied: plain reason + one click to the exact Settings pane. */
+function showScreenRecordingFix(host) {
+  const row = document.createElement('div');
+  row.className = 'web-offrow';
+  row.textContent = t('context.screenRecordingFix') + ' ';
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = 'btn'; b.textContent = t('context.openSettings');
+  b.onclick = function () { try { void window.nexio.openSystemSettings('screen-recording'); } catch (e) {} };
+  row.appendChild(b);
+  host.appendChild(row);
+  try { agentScroll(); requestResize(); } catch (e) {}
+}
 function showWebOff(host, afterEl) {
   const row = document.createElement('div');
   row.className = 'web-offrow';
@@ -918,7 +930,7 @@ async function sendInner(submitOpts) {
               var cst = null;
               try { cst = await window.nexio.contextStatus(); } catch (e) {}
               var states = (cst && cst.states) || {};
-              assistantDiv = addMsg('assistant', t('context.clipboardUnavailable', { state: states.clipboard || 'unavailable' }));
+              assistantDiv = addMsg('assistant', t('context.clipboardUnavailable', { state: ctxDescribeState(states.clipboard || 'unavailable') }));
             }
           } else {
             var sv = null;
@@ -929,6 +941,36 @@ async function sendInner(submitOpts) {
         } catch (e) {
           assistantDiv = addMsg('assistant', errText(e));
         }
+        return;
+      }
+      if (trigger === '/screen') {
+        startTurn();
+        addMsg('user', text);
+        showView('run');
+        try {
+          var shotMode = (rest[0] || 'window').toLowerCase() === 'screen' ? 'screen' : 'window';
+          var shot = await window.nexio.contextCapture(shotMode);
+          await ctxRefresh();
+          assistantDiv = addMsg('assistant', t('context.shotCaptured'));
+          void shot;
+        } catch (e) {
+          var msg = errText(e);
+          assistantDiv = addMsg('assistant', msg);
+          if (/Screen Recording/i.test(msg)) showScreenRecordingFix(assistantDiv);
+        }
+        showView('run');
+        return;
+      }
+      if (trigger === '/schedule') {
+        startTurn();
+        addMsg('user', text);
+        showView('run');
+        try {
+          assistantDiv = addMsg('assistant', await runScheduleCommand(rest));
+        } catch (e) {
+          assistantDiv = addMsg('assistant', errText(e));
+        }
+        showView('run');
         return;
       }
       if (trigger === '/search') {
@@ -950,7 +992,7 @@ async function sendInner(submitOpts) {
       if (trigger === '/new') return void newChat();
       if (trigger === '/clear') { messagesEl.innerHTML = ''; assistantDiv = null; currentTurn = null; const st0 = $('agent-steps'); if (st0) st0.innerHTML = ''; const ch0 = $('run-chips'); if (ch0) ch0.remove(); inputEl.value = ''; drafts[mode] = ''; try { if (typeof clearAttachTray === 'function') clearAttachTray(); } catch {} hideSuggest(); showView('idle'); try { maybeSuggest(); } catch {} syncChrome(); requestResize(); return; }
       if (trigger === '/help') {
-        addMsg('assistant', '**Commands:** /help /new /clear /model /history /settings /log /extensions /memory /remember /forget /incognito /spawn /queue /tasks /cancel /clear-queue /pin /search /context /clip /sel + prompt templates + workflows + skills.\nType `/` to browse.');
+        addMsg('assistant', '**Commands:** /help /new /clear /model /history /settings /log /extensions /memory /remember /forget /incognito /spawn /queue /tasks /cancel /clear-queue /pin /search /context /clip /sel /screen /schedule + prompt templates + workflows + skills.\nType `/` to browse.');
         showView('run');
         return;
       }
@@ -1099,7 +1141,7 @@ inputEl.addEventListener('keydown', (e) => {
     selectMode(mode === 'chat' ? 'agent' : 'chat');
     return;
   }
-  if (e.altKey && (e.key === 'm' || e.key === 'M')) { e.preventDefault(); e.stopPropagation(); selectMode(mode === 'chat' ? 'agent' : 'chat'); return; }
+  if (hotkeyMatches(currentModeHotkey, e)) { e.preventDefault(); e.stopPropagation(); selectMode(mode === 'chat' ? 'agent' : 'chat'); return; }
   if (e.altKey && e.key === '1') { e.preventDefault(); e.stopPropagation(); selectMode('chat'); return; }
   if (e.altKey && e.key === '2') { e.preventDefault(); e.stopPropagation(); selectMode('agent'); return; }
   if (!paletteEl.classList.contains('hidden')) {
@@ -1293,8 +1335,10 @@ $('btn-settings').onclick = async () => {
   $('set-baseurl').value = s.baseUrl || '';
   if ($('set-sendtemp')) $('set-sendtemp').checked = s.sendTemperature !== false;
   void refreshModelSuggestions();
-  $('set-agentcwd').value = s.agentCwd || '';
+  void paintSchedJobs();  $('set-agentcwd').value = s.agentCwd || '';
   $('set-stophotkey').value = s.agentStopHotkey || 'Ctrl+Alt+Esc';
+  if ($('set-modehotkey')) $('set-modehotkey').value = s.modeHotkey || 'Alt+M';
+  if (s.modeHotkey) currentModeHotkey = s.modeHotkey;
   $('set-maxcalls').value = s.agentMaxCalls || 25;
   $('set-reqapprove').checked = s.requireApprovalForWrites !== false;
   if ($('set-askread')) $('set-askread').checked = s.askReadEnabled !== false;
@@ -1312,7 +1356,6 @@ $('btn-settings').onclick = async () => {
     });
   }
   if ($('set-mem-suggest')) $('set-mem-suggest').checked = s.memorySuggest === true;
-  if ($('set-mem-semantic')) $('set-mem-semantic').checked = s.memorySemantic === true;
   if ($('set-mem-ask')) $('set-mem-ask').checked = s.memoryUseInAsk !== false;
   if ($('set-incognito')) $('set-incognito').checked = s.incognito === true;
   incognitoOn = s.incognito === true;
@@ -1358,6 +1401,7 @@ $('btn-save-settings').onclick = async () => {
   else patch.baseUrl = '';
   if (settingsProvider === 'compatible' && $('set-sendtemp')) patch.sendTemperature = $('set-sendtemp').checked;
   patch.agentStopHotkey = $('set-stophotkey').value.trim() || 'Ctrl+Alt+Esc';
+  if ($('set-modehotkey') && $('set-modehotkey').value.trim()) patch.modeHotkey = $('set-modehotkey').value.trim();
   const mc = parseInt($('set-maxcalls').value, 10);
   if (Number.isFinite(mc)) patch.agentMaxCalls = Math.min(100, Math.max(1, mc));
   patch.requireApprovalForWrites = $('set-reqapprove').checked; // shell_run always needs approval regardless
@@ -1368,7 +1412,6 @@ $('btn-save-settings').onclick = async () => {
   patch.memoryKinds = {};
   document.querySelectorAll('#set-mem-kinds input[data-memkind]').forEach((c) => { patch.memoryKinds[c.dataset.memkind] = c.checked; });
   if ($('set-mem-suggest')) patch.memorySuggest = $('set-mem-suggest').checked;
-  if ($('set-mem-semantic')) patch.memorySemantic = $('set-mem-semantic').checked;
   if ($('set-mem-ask')) patch.memoryUseInAsk = $('set-mem-ask').checked;
   if ($('set-incognito')) patch.incognito = $('set-incognito').checked;
   const hk = $('set-hotkey') && $('set-hotkey').value.trim();
@@ -1402,6 +1445,7 @@ $('btn-save-settings').onclick = async () => {
   void paintWebStatus();
   void paintSecretsNotice();
   currentStopHotkey = $('set-stophotkey').value.trim() || 'Ctrl+Alt+Esc';
+  if ($('set-modehotkey') && $('set-modehotkey').value.trim()) currentModeHotkey = $('set-modehotkey').value.trim();
   void refreshHotkeyStatus();
   void loadPlatform(); // re-read toggle/stop labels (hotkeys may have changed)
   $('settings-status').textContent = 'Saved';
@@ -4802,8 +4846,6 @@ async function refreshMemInfo() {
     const s = await window.nexio.getSettings();
     const status = !s.memoryEnabled ? 'Off' : s.memoryOneTap === false ? 'On: only when I say remember' : 'On: asks before saving';
     el.textContent = `${status} · ${info.count} memories · ${info.bytes >= 1024 ? (info.bytes / 1024).toFixed(1) + ' KB' : info.bytes + ' B'} · ${info.encrypted ? 'encrypted' : 'not encrypted — enable device encryption'}${info.stale ? ` · ${info.stale} to review` : ''}`;
-    const desc = $('set-mem-semdesc');
-    if (desc) desc.textContent = 'Off: keyword search only. On: still keyword search (embeddings not wired yet).';
   } catch { el.textContent = 'Memory unavailable.'; }
 }
 if ($('btn-mem-open')) $('btn-mem-open').onclick = () => void openMemoryView();
@@ -4863,6 +4905,20 @@ void maybeOnboard();
 var platformInfo = null;
 var currentToggleHotkey = 'Alt+Space';
 var currentStopHotkey = 'Ctrl+Alt+Esc';
+var currentModeHotkey = 'Alt+M';
+/** Match a stored hotkey string (e.g. 'Alt+M') against a keydown event. */
+function hotkeyMatches(stored, e) {
+  var parts = String(stored || '').split('+').map(function (p) { return p.trim().toLowerCase(); }).filter(Boolean);
+  if (!parts.length) return false;
+  var key = parts[parts.length - 1];
+  var mods = parts.slice(0, -1);
+  var wantAlt = mods.indexOf('alt') !== -1 || mods.indexOf('option') !== -1;
+  var wantCtrl = mods.indexOf('ctrl') !== -1 || mods.indexOf('control') !== -1;
+  var wantShift = mods.indexOf('shift') !== -1;
+  var wantMeta = mods.indexOf('cmd') !== -1 || mods.indexOf('command') !== -1 || mods.indexOf('meta') !== -1;
+  if (!!e.altKey !== wantAlt || !!e.ctrlKey !== wantCtrl || !!e.shiftKey !== wantShift || !!e.metaKey !== wantMeta) return false;
+  return String(e.key || '').toLowerCase() === key;
+}
 function keysHtml(keys) {
   return (keys || []).map((k) => `<span class="k">${esc(k)}</span>`).join('');
 }
@@ -6346,6 +6402,163 @@ function hideTaskChoice() {
 }
 
 // --- slash commands for tasks (renderer-side, before the router) ---
+/* --- Scheduled jobs (/schedule + Settings section) --- */
+var schedCache = [];
+async function schedCall(a) {
+  return window.nexio.schedules(a);
+}
+function schedFmtNext(ms) {
+  if (!ms) return '—';
+  try {
+    var d = new Date(ms);
+    return d.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  } catch (e) { return '—'; }
+}
+function schedLine(j, i) {
+  return (i + 1) + '. ' + j.name + ' [' + (j.enabled ? 'on' : 'paused') + ', ' + j.scope + '] — ' + (j.human || j.spec) +
+    ' — next: ' + schedFmtNext(j.nextRunAt) +
+    (j.lastStatus ? ' — last: ' + j.lastStatus : '');
+}
+function parseSchedSpec(words) {
+  // daily HH:MM | weekdays Mon,Wed HH:MM | interval 30m | cron <5 fields>
+  if (!words.length) return null;
+  var head = words[0].toLowerCase();
+  if (head === 'daily' && words[1] && /^(\d{1,2}):(\d{2})$/.test(words[1])) {
+    var m = /^(\d{1,2}):(\d{2})$/.exec(words[1]);
+    return { kind: 'daily', hh: parseInt(m[1], 10), mm: parseInt(m[2], 10) };
+  }
+  if (head === 'weekdays' && words[1] && words[2] && /^(\d{1,2}):(\d{2})$/.test(words[2])) {
+    var days = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
+    var ds = words[1].split(',').map(function (d) { return days[d.trim().toLowerCase()]; }).filter(function (d) { return d !== undefined; });
+    if (!ds.length) return null;
+    var t = /^(\d{1,2}):(\d{2})$/.exec(words[2]);
+    return { kind: 'weekdays', days: ds, hh: parseInt(t[1], 10), mm: parseInt(t[2], 10) };
+  }
+  if (head === 'interval' && words[1] && /^(\d+)(m|h)$/.test(words[1])) {
+    var iv = /^(\d+)(m|h)$/.exec(words[1]);
+    var ms = parseInt(iv[1], 10) * (iv[2] === 'h' ? 3600000 : 60000);
+    if (ms < 60000) return null;
+    return { kind: 'interval', everyMs: ms };
+  }
+  if (head === 'cron' && words.length >= 6) return { kind: 'cron', expr: words.slice(1, 6).join(' ') };
+  return null;
+}
+async function runScheduleCommand(rest) {
+  var sub = (rest[0] || 'list').toLowerCase();
+  if (sub === 'help' || sub === 'h') {
+    return '/schedule list — show jobs\n/schedule add <name> | <prompt> | <daily HH:MM | weekdays Mon,Wed HH:MM | interval 30m | cron …> [ask|do]\n/schedule pause|resume|run|delete <n>\nJobs run only while Nexio is running. Do runs ask approval like normal turns.';
+  }
+  if (sub === 'list' || sub === 'ls') {
+    var jobs = await schedCall({ action: 'list' });
+    schedCache = jobs || [];
+    if (!schedCache.length) return 'No scheduled jobs. Add one: /schedule add Morning brief | summarize my inbox | daily 09:00';
+    return 'Scheduled jobs (run only while Nexio is running):\n' + schedCache.map(schedLine).join('\n');
+  }
+  if (sub === 'add') {
+    var parts = rest.slice(1).join(' ').split('|').map(function (p) { return p.trim(); });
+    if (parts.length < 3) return 'Usage: /schedule add <name> | <prompt> | <daily HH:MM | weekdays Mon,Wed HH:MM | interval 30m | cron …> [ask|do]';
+    var spec = parseSchedSpec(parts[2].split(/\s+/));
+    if (!spec) return 'Could not read the schedule. Try: daily 09:00 · weekdays Mon,Wed 09:00 · interval 30m · cron 0 9 * * 1-5';
+    var scope = (parts[3] || 'ask').toLowerCase() === 'do' ? 'do' : 'ask';
+    var created = await schedCall({ action: 'create', name: parts[0], prompt: parts[1], scope: scope, spec: spec });
+    schedCache = await schedCall({ action: 'list' });
+    return 'Scheduled: ' + created.name + ' — ' + created.human + ' (' + created.scope + ')';
+  }
+  var idx = parseInt(rest[1] || '', 10) - 1;
+  var target = schedCache[idx];
+  if (!target) {
+    schedCache = await schedCall({ action: 'list' });
+    target = schedCache[parseInt(rest[1] || '', 10) - 1];
+  }
+  if (!target) return 'Unknown job. Run /schedule list first.';
+  if (sub === 'pause') { await schedCall({ action: 'update', id: target.id, enabled: false }); return 'Paused: ' + target.name; }
+  if (sub === 'resume') { await schedCall({ action: 'update', id: target.id, enabled: true }); return 'Resumed: ' + target.name; }
+  if (sub === 'run') { var r = await schedCall({ action: 'runNow', id: target.id }); return 'Started now: ' + target.name + ' (' + r.summary + ')'; }
+  if (sub === 'delete' || sub === 'rm') { await schedCall({ action: 'remove', id: target.id }); return 'Deleted: ' + target.name; }
+  return 'Unknown subcommand. Run /schedule help.';
+}
+var schedKind = 'daily';
+var schedScope = 'ask';
+function schedSegWire() {
+  var ks = document.querySelectorAll('#sched-kind-seg button');
+  ks.forEach(function (b) {
+    b.onclick = function () {
+      schedKind = b.dataset.kind;
+      ks.forEach(function (x) { x.classList.toggle('on', x === b); });
+    };
+  });
+  var ss = document.querySelectorAll('#sched-scope-seg button');
+  ss.forEach(function (b) {
+    b.onclick = function () {
+      schedScope = b.dataset.scope;
+      ss.forEach(function (x) { x.classList.toggle('on', x === b); });
+    };
+  });
+  var add = $('btn-sched-add');
+  if (add && !add.dataset.schedwired) {
+    add.dataset.schedwired = '1';
+    add.onclick = async function () {
+      var st = $('sched-status');
+      var say = function (m) { if (st) { st.textContent = m; st.classList.remove('hidden'); } };
+      try {
+        var name = ($('sched-name').value || '').trim();
+        var prompt = ($('sched-prompt').value || '').trim();
+        var when = ($('sched-when').value || '').trim();
+        if (!name || !prompt || !when) { say('Fill name, prompt and time first.'); return; }
+        var spec = parseSchedSpec((schedKind + ' ' + when).split(/\s+/));
+        if (!spec) { say('Could not read that time. Try 09:00, Mon,Wed 09:00, 30m, or 0 9 * * 1-5.'); return; }
+        var created = await schedCall({ action: 'create', name: name, prompt: prompt, scope: schedScope, spec: spec });
+        $('sched-name').value = '';
+        $('sched-prompt').value = '';
+        $('sched-when').value = '';
+        say('Scheduled: ' + created.name + ' — ' + created.human);
+        void paintSchedJobs();
+      } catch (e) { say(errText(e)); }
+    };
+  }
+}
+async function paintSchedJobs() {
+  var host = $('sched-list');
+  if (!host) return;
+  schedSegWire();
+  var jobs = [];
+  try { jobs = await schedCall({ action: 'list' }); } catch (e) { host.innerHTML = ''; return; }
+  schedCache = jobs;
+  host.innerHTML = '';
+  if (!jobs.length) {
+    var li = document.createElement('li');
+    li.className = 'muted';
+    li.textContent = 'No jobs yet.';
+    host.appendChild(li);
+    return;
+  }
+  jobs.forEach(function (j, i) {
+    var li = document.createElement('li');
+    var head = document.createElement('span');
+    head.textContent = schedLine(j, i);
+    li.appendChild(head);
+    var row = document.createElement('div');
+    row.className = 'row';
+    [['pause', 'Pause'], ['resume', 'Resume'], ['run', 'Run now'], ['delete', 'Delete']].forEach(function (pair) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn';
+      b.textContent = pair[1];
+      b.onclick = async function () {
+        try {
+          if (pair[0] === 'pause') await schedCall({ action: 'update', id: j.id, enabled: false });
+          else if (pair[0] === 'resume') await schedCall({ action: 'update', id: j.id, enabled: true });
+          else if (pair[0] === 'run') await schedCall({ action: 'runNow', id: j.id });
+          else await schedCall({ action: 'remove', id: j.id });
+          void paintSchedJobs();
+        } catch (e) { /* buttons stay; error surfaces on next paint */ }
+      };
+      row.appendChild(b);
+    });
+    li.appendChild(row);
+    host.appendChild(li);
+  });
+}
 async function runCancelCommand(arg) {
   var n = parseInt(String(arg || '').trim(), 10);
   var rows = [...taskCache.values()]
@@ -6427,13 +6640,14 @@ var ctxAppName = '';
 var ctxPreviewFor = null;
 var ctxChoiceText = null;
 var ctxNoticeShown = false;
-var CTX_ORDER = ['selection', 'files', 'folder', 'page', 'clipboard'];
+var CTX_ORDER = ['selection', 'files', 'folder', 'page', 'clipboard', 'screenshot'];
 var CTX_ICONS = {
   selection: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 10h16M4 14h10M4 18h7"/></svg>',
   files: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>',
   folder: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M3 13h18"/></svg>',
   page: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.5 2.3 3.8 5.2 3.8 8.5s-1.3 6.2-3.8 8.5c-2.5-2.3-3.8-5.2-3.8-8.5S9.5 5.8 12 3.5z"/></svg>',
-  clipboard: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4a3 3 0 0 1 6 0"/></svg>'
+  clipboard: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4a3 3 0 0 1 6 0"/></svg>',
+  screenshot: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"/><circle cx="12" cy="13" r="3.5"/><path d="M8 7l1.5-2.5h5L16 7"/></svg>'
 };
 function ctxSay(m) { try { var el = document.getElementById('attach-live'); if (el) el.textContent = m; } catch (e) {} }
 function ctxDescribeState(state) {
@@ -6453,6 +6667,10 @@ function ctxDescribeState(state) {
     if (k === 'private_window') return t('context.statePrivate');
     if (k === 'disabled') return t('context.stateDisabled');
     if (k === 'too_large') return t('context.stateTooLarge');
+    if (k === 'deny_listed_app') return t('context.stateDenyListed');
+    if (k === 'unsupported_app') return t('context.stateUnsupported');
+    if (k === 'not_configured') return t('context.stateNotConfigured');
+    if (k === 'no_screen_context') return t('context.stateNoScreen');
     return t('context.stateSkipped', { reason: k.replace(/_/g, ' ') });
   }
   return state;
@@ -6547,12 +6765,26 @@ function renderCtxTray() {
         var go = document.createElement('button');
         go.type = 'button';
         go.className = 'switch-do-chip';
-        go.textContent = 'Open System Settings';
+        go.textContent = t('context.openSettings');
         go.onclick = function (e) {
           e.stopPropagation();
-          try { void window.nexio.openSystemSettings(v.source === 'files' ? 'automation' : 'accessibility'); } catch (err) {}
+          var pane = v.source === 'screenshot' ? 'screen-recording' : (v.source === 'files' ? 'automation' : 'accessibility');
+          try { void window.nexio.openSystemSettings(pane); } catch (err) {}
         };
         chip.appendChild(go);
+      } else if (v.source === 'screenshot' && v.state === 'skipped:empty') {
+        // why: capture is explicit — the chip offers the action, never captures by itself.
+        var cap = document.createElement('button');
+        cap.type = 'button';
+        cap.className = 'switch-do-chip';
+        cap.textContent = t('context.shotCapture');
+        cap.onclick = function (e) {
+          e.stopPropagation();
+          try {
+            void window.nexio.contextCapture('window').then(function () { void ctxRefresh(); ctxSay(t('context.shotCaptured')); });
+          } catch (err) {}
+        };
+        chip.appendChild(cap);
       }
     }
     host.appendChild(chip);
@@ -6592,8 +6824,7 @@ function renderCtxPreview(host) {
   head.appendChild(close);
   box.appendChild(head);
   if (v.source === 'files') {
-    var lines = String(v.preview).split('\n');
-    var list = document.createElement('div');
+    var lines = String(v.preview).split('\n');    var list = document.createElement('div');
     list.className = 'ctx-filelist';
     lines.forEach(function (line) {
       var m = /^(.*) \| (.*?)(\s*\[.*\])?$/.exec(line);
@@ -6615,6 +6846,13 @@ function renderCtxPreview(host) {
       list.appendChild(row);
     });
     box.appendChild(list);
+  } else if (typeof v.preview === 'string' && v.preview.indexOf('data:image') === 0) {
+    // why: screenshot thumbnails render as images, never as base64 text.
+    var img = document.createElement('img');
+    img.className = 'ctx-shotimg';
+    img.src = v.preview;
+    img.alt = v.label;
+    box.appendChild(img);
   } else {
     var pre = document.createElement('pre');
     pre.className = 'ctx-mono';

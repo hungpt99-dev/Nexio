@@ -212,7 +212,7 @@ describe('loop: memory injection rule + Ask policy', () => {
 
 function settings(over: Partial<Settings> = {}): Settings {
   return {
-    provider: 'openai', model: 'm', theme: 'dark', hotkey: 'Alt+Space', mode: 'agent', modeHotkey: 'Alt+M',
+    provider: 'openai', model: 'm', hotkey: 'Alt+Space', mode: 'agent', modeHotkey: 'Alt+M',
     memoryEnabled: true,
     memoryKinds: { preference: true, fact: true, folder_rule: true, procedure: true, episode: true },
     memoryMaxItems: 500, memoryEpisodeDays: 30, memoryStaleDays: 180,

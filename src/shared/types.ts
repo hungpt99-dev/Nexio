@@ -74,7 +74,6 @@ export interface Settings {
   compatibleImages?: 'auto' | 'on' | 'off';
   /** Local text fallback for files the provider can't read (default false = refuse with a notice). */
   localTextFallback?: boolean;
-  theme: 'light' | 'dark';
   hotkey: string;
   mode: Mode;
   modeHotkey: string;
@@ -111,7 +110,6 @@ export interface Settings {
   /** One-tap save rows for explicit identity/preference statements. Default true (needs master on to store). */
   memoryOneTap?: boolean;
   /** Semantic search (provider embeddings). Default false; retrieval stays FTS until wired. */
-  memorySemantic?: boolean;
   /** Use memory in Ask mode. Default true. */
   memoryUseInAsk?: boolean;
   /** Max stored memories. Default 500. */
@@ -267,6 +265,15 @@ export type DecisionAction =
     }
   | { action: 'calibration'; pointId?: string };
 
+/** Single-channel scheduled-job management (the schedules dispatch channel). */
+export type ScheduleAction =
+  | { action: 'list' }
+  | { action: 'get'; id: string }
+  | { action: 'create'; name: string; prompt: string; scope?: 'ask' | 'do'; spec: unknown; tz?: string; missPolicy?: 'run-once' | 'skip' }
+  | { action: 'update'; id: string; name?: string; prompt?: string; scope?: 'ask' | 'do'; spec?: unknown; tz?: string; enabled?: boolean; missPolicy?: 'run-once' | 'skip' }
+  | { action: 'remove'; id: string }
+  | { action: 'runNow'; id: string };
+
 /** Single-channel task management (the tasks dispatch channel). Renderer-safe: plain data only. */
 export type TaskAction =
   | { action: 'list' }
@@ -288,7 +295,7 @@ export interface TaskRow {
   id: string;
   title: string;
   prompt: string;
-  origin: 'user_spawn' | 'user_queue' | 'agent_subtask';
+  origin: 'user_spawn' | 'user_queue' | 'agent_subtask' | 'scheduled';
   parentId: string | null;
   depth: number;
   priority: 'normal' | 'high';

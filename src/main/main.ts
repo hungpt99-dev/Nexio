@@ -7,7 +7,7 @@ import { resolveAppLocale, setLocale, t } from './i18n/index';
 import { createPopup, togglePopup, getPopup } from './popup';
 import { confirmQuitWithTasks, resetDialogLock } from './app/dialogs';
 import { createTray } from './tray';
-import { registerIpc, refreshToggleHotkey, applyLaunchAtLogin } from './ipc';
+import { registerIpc, refreshToggleHotkey, applyLaunchAtLogin, startSchedules, stopSchedules } from './ipc';
 import { getScheduler, interruptTasksForQuit, runningTaskCount } from './tasks/taskHost';
 import { markSecretsReady, scanForReentry } from './secrets/index';
 import { extService, shutdownExtensions } from './extensions/index';
@@ -91,6 +91,11 @@ async function startup(): Promise<void> {
     setLocale(resolveAppLocale(s.locale, sys));
   } catch { /* English fallback */ }
   registerIpc();
+  // Scheduled jobs run only while the app runs; start-at-login + tray
+  // residency keep it alive (documented in docs/tasks.md#scheduled-tasks).
+  try {
+    startSchedules();
+  } catch { /* scheduler never breaks startup */ }
   try {
     // Seed bundled example extensions (disabled until the user enables them).
     extService(db).store.seedExamples(path.join(__dirname, '..', 'assets', 'extensions'));
@@ -140,6 +145,9 @@ app.on('before-quit', (e) => {
 app.on('will-quit', () => {
   globalShortcut.unregisterAll();
   resetDialogLock();
+  try {
+    stopSchedules();
+  } catch { /* noop */ }
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     require('./context/store').clear();

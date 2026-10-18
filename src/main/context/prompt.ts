@@ -2,6 +2,7 @@ import type { ContextSnapshot, ContextSourceName, SnapshotMeta } from './types';
 import { snapshotMeta } from './types';
 import { t } from '../i18n/index';
 import { isFileExcluded } from './store';
+import { shotPreview } from './screenshot';
 import type { ContextSnapshotView, ContextSourceView } from '../../shared/types';
 
 export interface ContextIntent {
@@ -175,6 +176,20 @@ export function buildSnapshotView(snap: ContextSnapshot): ContextSnapshotView {
       ...(snap.page?.text ? { preview: snap.page.text.slice(0, 20000) } : {}),
     });
   }
+  if (snap.states.screenshot !== 'skipped:disabled' && snap.states.screenshot !== 'skipped:not_configured') {
+    push({
+      source: 'screenshot',
+      state: snap.states.screenshot,
+      attached: snap.attached.has('screenshot'),
+      label: snap.screenshot
+        ? t('context.shotReady', { source: snap.screenshot.source })
+        : snap.states.screenshot === 'available'
+          ? t('context.shotReady', { source: '' })
+          : t('context.shotBare'),
+      ...(snap.screenshot ? { detail: t('context.shotDetail', { width: snap.screenshot.width, height: snap.screenshot.height }) } : {}),
+      ...((snap.screenshot && shotPreview(snap)) ? { preview: shotPreview(snap) as string } : {}),
+    });
+  }
   return {
     id: snap.id,
     app: { ...snap.app },
@@ -201,6 +216,10 @@ export function describeContextState(state: string): string {
     if (r === 'concealed') return 'skipped (password manager)';
     if (r === 'private_window') return 'private window — skipped';
     if (r === 'disabled') return 'off in Settings';
+    if (r === 'deny_listed_app') return 'skipped (blocked app)';
+    if (r === 'unsupported_app') return 'skipped (unsupported app)';
+    if (r === 'not_configured') return 'skipped (not set up)';
+    if (r === 'no_screen_context') return 'screen capture is not available yet';
     return `skipped (${r.replace(/_/g, ' ')})`;
   }
   return state;

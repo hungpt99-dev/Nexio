@@ -25,7 +25,6 @@ export const DEFAULT_SETTINGS: Settings = {
   sendTemperature: true,
   compatibleImages: 'auto',
   localTextFallback: false,
-  theme: 'light',
   hotkey: 'Alt+Space',
   mode: 'agent',
   modeHotkey: 'Alt+M',
@@ -40,7 +39,6 @@ export const DEFAULT_SETTINGS: Settings = {
   memoryKinds: { preference: true, fact: true, folder_rule: true, procedure: true, episode: true },
   memorySuggest: false,
   memoryOneTap: true,
-  memorySemantic: false,
   memoryUseInAsk: true,
   memoryMaxItems: 500,
   memoryEpisodeDays: 30,
@@ -88,7 +86,6 @@ export function validateSettings(s: Partial<Settings>): string[] {
   if (s.sendTemperature !== undefined && typeof s.sendTemperature !== 'boolean') errors.push('sendTemperature must be boolean');
   if (s.compatibleImages !== undefined && s.compatibleImages !== 'auto' && s.compatibleImages !== 'on' && s.compatibleImages !== 'off') errors.push('compatibleImages must be auto, on or off');
   if (s.localTextFallback !== undefined && typeof s.localTextFallback !== 'boolean') errors.push('localTextFallback must be boolean');
-  if (s.theme !== undefined && s.theme !== 'light' && s.theme !== 'dark') errors.push('theme must be light or dark');
   if (s.mode !== undefined && !MODES.includes(s.mode)) errors.push('mode must be chat or agent');
   if (s.modeHotkey !== undefined && (typeof s.modeHotkey !== 'string' || !HOTKEY_RE.test(s.modeHotkey))) errors.push('modeHotkey must match letters/digits joined by + (e.g. Alt+M)');
   if (s.agentCwd !== undefined && s.agentCwd !== '' && typeof s.agentCwd !== 'string') errors.push('agentCwd must be a string path');
@@ -104,7 +101,6 @@ export function validateSettings(s: Partial<Settings>): string[] {
     !['preference', 'fact', 'folder_rule', 'procedure', 'episode'].every((k) => typeof (s.memoryKinds as Record<string, unknown>)[k] === 'boolean'))) errors.push('memoryKinds must be a map of booleans');
   if (s.memorySuggest !== undefined && typeof s.memorySuggest !== 'boolean') errors.push('memorySuggest must be boolean');
   if (s.memoryOneTap !== undefined && typeof s.memoryOneTap !== 'boolean') errors.push('memoryOneTap must be boolean');
-  if (s.memorySemantic !== undefined && typeof s.memorySemantic !== 'boolean') errors.push('memorySemantic must be boolean');
   if (s.memoryUseInAsk !== undefined && typeof s.memoryUseInAsk !== 'boolean') errors.push('memoryUseInAsk must be boolean');
   if (s.memoryMaxItems !== undefined && (typeof s.memoryMaxItems !== 'number' || s.memoryMaxItems < 10 || s.memoryMaxItems > 5000)) errors.push('memoryMaxItems must be 10..5000');
   if (s.memoryEpisodeDays !== undefined && (typeof s.memoryEpisodeDays !== 'number' || s.memoryEpisodeDays < 1 || s.memoryEpisodeDays > 365)) errors.push('memoryEpisodeDays must be 1..365');
@@ -179,7 +175,7 @@ export function validateSettings(s: Partial<Settings>): string[] {
 }
 
 /** Keys from the removed external-runtime era; always built-in now, dropped on read. */
-const LEGACY_RUNTIME_KEYS = ['agentRuntime', 'agentBackend', 'engine', 'opencodeBaseUrl', 'claudeBin', 'codexBin'];
+const LEGACY_RUNTIME_KEYS = ['agentRuntime', 'agentBackend', 'engine', 'opencodeBaseUrl', 'claudeBin', 'codexBin', 'theme', 'memorySemantic'];
 
 export function getSettings(db: DatabaseSync): Settings {
   const rows = db.prepare('SELECT key, value FROM settings').all() as Array<{ key: string; value: string }>;

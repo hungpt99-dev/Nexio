@@ -11,7 +11,7 @@ import type { Settings } from '../../src/shared/types';
 
 const tmpRoot = () => fs.mkdtempSync(path.join(os.tmpdir(), 'nexio-web-'));
 const S = (over: Record<string, unknown> = {}) =>
-  ({ provider: 'openai', model: 'm', theme: 'light', hotkey: '', mode: 'chat', webAllow: true, webAskBefore: false, webSaveQueries: false, webConsent: {}, webAllowlist: [], ...over }) as unknown as Settings;
+  ({ provider: 'openai', model: 'm', hotkey: '', mode: 'chat', webAllow: true, webAskBefore: false, webSaveQueries: false, webConsent: {}, webAllowlist: [], ...over }) as unknown as Settings;
 const DEX = (over: Record<string, unknown> = {}) => ({ provider: 'openai', model: 'gpt-4o', apiKey: '', ...over });
 
 function toolTurn(calls: Array<{ id: string; name: string; input: unknown }>, text = ''): Response {

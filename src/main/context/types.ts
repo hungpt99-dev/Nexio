@@ -69,6 +69,8 @@ export interface ContextSnapshot {
   folder?: FolderData;
   clipboard?: ClipboardData;
   page?: PageData;
+  /** Screenshot capture (explicit action only; memory only, never logged). */
+  screenshot?: { png: Buffer; width: number; height: number; source: string; sha: string };
   sources: ContextSourceName[];
   states: Record<ContextSourceName, ContextState>;
   attached: Set<ContextSourceName>;

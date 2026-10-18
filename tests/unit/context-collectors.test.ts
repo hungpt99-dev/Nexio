@@ -9,7 +9,7 @@ import type { ActiveWindow } from '../../src/main/platform/types';
 const APP = { name: 'Notepad', windowTitle: 'n', isBrowser: false };
 const WIN: ActiveWindow = { pid: 123, id: 'notepad.exe', name: 'Notepad', windowTitle: 'n', isBrowser: false };
 const ctxBase = (over: Record<string, unknown> = {}) => ({
-  settings: { provider: 'openai', model: 'm', theme: 'light', hotkey: '', mode: 'chat', contextSources: {}, ...over } as never,
+  settings: { provider: 'openai', model: 'm', hotkey: '', mode: 'chat', contextSources: {}, ...over } as never,
   cwd: '/', homeDir: '/tmp', signal: new AbortController().signal,
 });
 

@@ -7,11 +7,25 @@ requests like "summarize this", "translate this", "move these to Invoices"
 or "what is this file?" work without explaining. One `ContextSnapshot`
 (in memory only, main process) feeds the router and the agent.
 
-There is no separate "screen context" feature: no screenshot source exists
-yet (state `skipped:no_screen_context`). The page URL/title/text collector
-described here is the browser-details collector; a screenshot reference
-field is reserved in the snapshot for a future screen feature. Roadmap:
-native helper (replace the script collectors), region selection, more apps.
+There IS a screen source now: `screenshot` captures on explicit action only
+(`/screen`, the Capture button, `context-capture`) — never on refresh. The
+popup hides during capture and restores after; deny-listed apps refuse;
+bytes live in the snapshot (memory only) and ride the attachment pipeline
+on send. Roadmap: native helper (replace the script collectors), drag-select
+region, more apps.
+
+## Collection mechanisms (why these are the least invasive real options)
+
+- **macOS**: the Accessibility tree via System Events/osascript
+  (read-only queries against the recorded pid). Rejected: keystroke
+  injection (changes user state) and clipboard hijack (destroys content).
+- **Windows**: UIAutomation read-only text patterns via PowerShell
+  (no `SendKeys`, no clipboard touch).
+- **Clipboard** is read only when attached/included by the user; concealed
+  password-manager formats are skipped before any content is read.
+- **Screenshot** uses Electron `desktopCapturer` (no new dependency, no
+  native module): window or display-under-cursor, popup hidden first,
+  target matched by id/title and refused on mismatch.
 
 ## Concepts
 
@@ -21,12 +35,13 @@ native helper (replace the script collectors), region selection, more apps.
   collectors run asynchronously against that recorded window (per-source
   budgets: 400 ms, 800 ms for Finder/Explorer scripts). A slow collector
   never blocks typing; chips fill in as results arrive.
-- **Sources**: `selection`, `files`, `folder`, `clipboard`, `page`
-  (+ reserved `screenshot`). Each has a state:
+- **Sources**: `selection`, `files`, `folder`, `clipboard`, `page`,
+  `screenshot` (explicit capture only — never collected on refresh). Each has
+  a state:
   `available | unavailable:<reason> | denied | skipped:<reason>` with
   reasons `no_permission`, `password_field`, `deny_listed_app`,
   `private_window`, `timeout`, `unsupported_app`, `empty`, `elevated_window`,
-  `concealed`, `disabled`, `too_large`.
+  `concealed`, `disabled`, `too_large`, `not_configured`.
 - **Snapshots expire 60 s after capture** (or when Nexio hides) and are
   re-captured on every show. They are never persisted, never logged with
   content, never included in history (history keeps only chip metadata),

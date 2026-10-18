@@ -59,6 +59,7 @@
         <div class="fld"><span class="flab">Agent — allowed folders</span><ul id="agent-roots" class="agent-list"></ul><div class="row"><button id="btn-agent-add-root">Add folder</button></div></div>
         <div class="fld"><span class="flab">Agent — always-allow rules</span><ul id="agent-rules" class="agent-list"></ul></div>
         <label class="fld"><span class="flab">Agent stop hotkey</span><input id="set-stophotkey" placeholder="Ctrl+Alt+Esc" class="mono" /></label>
+        <label class="fld"><span class="flab">Mode switch hotkey</span><input id="set-modehotkey" placeholder="Alt+M" class="mono" /></label>
         <label class="fld"><span class="flab">Max tool calls per run</span><input id="set-maxcalls" type="number" min="1" max="100" class="mono" /></label>
         <div class="set-section">
           <div class="set-title">Ask mode</div>
@@ -87,7 +88,6 @@
           <label class="fld check"><span class="switch-tx"><span class="flab">Remember things across conversations</span><span class="switch-desc">Stored on this computer only</span></span><input id="set-mem" type="checkbox" role="switch" /><span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span></label>
           <div class="mem-kinds-block"><span class="flab">Remember these kinds</span><div class="chip-group" id="set-mem-kinds" role="group" aria-label="Memory kinds"></div></div>
           <label class="fld check"><span class="switch-tx"><span class="flab">Suggest memories after I use Nexio</span><span class="switch-desc">One cheap look at your messages only</span></span><input id="set-mem-suggest" type="checkbox" role="switch" /><span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span></label>
-          <label class="fld check"><span class="switch-tx"><span class="flab">Semantic search</span><span class="switch-desc" id="set-mem-semdesc">Off: keyword search only</span></span><input id="set-mem-semantic" type="checkbox" role="switch" /><span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span></label>
           <label class="fld check"><span class="switch-tx"><span class="flab">Use memory in Ask mode</span><span class="switch-desc">Read-only retrieval</span></span><input id="set-mem-ask" type="checkbox" role="switch" /><span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span></label>
           <label class="fld check"><span class="switch-tx"><span class="flab">Incognito chat</span><span class="switch-desc">No history, no memory, minimal log</span></span><input id="set-incognito" type="checkbox" role="switch" /><span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span></label>
           </div>
@@ -125,6 +125,24 @@
             </div></div>
             <label class="fld check"><span class="switch-tx"><span class="flab" data-i18n="settings.taskNotify">Task notifications</span><span class="switch-desc" data-i18n="settings.taskNotifyDesc">Approvals and finished families</span></span><input id="set-task-notify" type="checkbox" role="switch" /><span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span></label>
             <label class="fld"><span class="flab" data-i18n="settings.taskPrune">Prune tasks after (days)</span><input id="set-task-prune" type="number" min="1" max="3650" class="mono" /></label>
+          </div>
+        </div>
+        <div class="set-section">
+          <div class="set-title">Scheduled jobs</div>
+          <div class="group">
+            <div class="note">Jobs run only while Nexio is running. Do runs ask approval like normal turns.</div>
+            <div class="fld"><ul id="sched-list" class="agent-list"></ul></div>
+            <label class="fld"><span class="flab">Name</span><input id="sched-name" class="mono" maxlength="80" /></label>
+            <label class="fld"><span class="flab">Prompt</span><textarea id="sched-prompt" class="mono" rows="2" maxlength="4000"></textarea></label>
+            <div class="fld"><span class="flab">Schedule</span><div class="seg" id="sched-kind-seg" role="group" aria-label="Schedule kind">
+              <button data-kind="daily" class="on">Daily</button><button data-kind="weekdays">Weekdays</button><button data-kind="interval">Interval</button><button data-kind="cron">Cron</button>
+            </div></div>
+            <label class="fld"><span class="flab">Time / expression</span><input id="sched-when" class="mono" placeholder="09:00 · Mon,Wed 09:00 · 30m · 0 9 * * 1-5" /></label>
+            <div class="fld"><span class="flab">Run as</span><div class="seg" id="sched-scope-seg" role="group" aria-label="Run scope">
+              <button data-scope="ask" class="on">Ask (read-only)</button><button data-scope="do">Do (acts, approvals apply)</button>
+            </div></div>
+            <div class="row"><button id="btn-sched-add" class="btn">Add job</button></div>
+            <div class="note hidden" id="sched-status" role="status"></div>
           </div>
         </div>
         <label class="fld"><span class="flab">Starter suggestions (one per line)</span><textarea id="set-suggest" class="mono" rows="4"></textarea></label>

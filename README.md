@@ -159,6 +159,8 @@ Scope follows the active mode: `all` works everywhere, `chat` is Ask-only, `agen
 | `/pin` | all | Keep the window open (`Alt+P`) |
 | `/cancel <n>` | all | Cancel a task |
 | `/clear-queue` | all | Clear the waiting queue (asks first) |
+| `/screen [window\|screen]` | all | Capture the active window or display (explicit; thumbnail chip to review/remove) |
+| `/schedule …` | all | Scheduled jobs: list/add/pause/resume/run/delete (`/schedule help`) |
 | `/translate /rewrite /summarize /explain /analyze /reply` | all | Prompt templates rendering `{{text}}` before sending |
 | `/email-reply` | Do | Workflow: paste text → `/reply` draft → output |
 | `/requirement-review` | Do | Workflow: paste text → `/analyze` review → output |
@@ -187,9 +189,9 @@ Packaging: `npm run dist` builds the Windows installer + `Nexio-portable.exe` an
 
 ## Honest status
 
-v0.1.0 pre-release / experimental. What works today: popup / hotkey / tray / pin, Ask + streaming + cancel, auto-router, slash + templates, workflows, local history, `Tab` switching, built-in Do loop with approvals + run log + Undo, Recycle Bin deletes, kill switch, attachments pipeline, long-term memory + incognito, parallel tasks + subtasks, skills / MCP / hooks (install OFF), onboarding, EN + VI UI with 15-locale intent packs.
+v0.1.0 pre-release / experimental. What works today: popup / hotkey / tray / pin, Ask + streaming + cancel, auto-router, slash + templates, workflows, local history, `Tab` switching, built-in Do loop with approvals + run log + Undo, Recycle Bin deletes, kill switch, attachments pipeline, long-term memory + incognito, parallel tasks + subtasks, skills / MCP / hooks (install OFF), onboarding, EN + VI UI with 15-locale intent packs, screenshot capture (`/screen`, explicit only), scheduled jobs (Ask/Do, approvals apply).
 
-Experimental or partial: decision-model engines (all OFF by default; Jev/Laya/structured adapters ship, no endpoint measured in this environment — see `docs/architecture/decisions.md`); tool-retrieval recall@10 is 0.912 vs the 0.95 target (lexical only); semantic memory search (setting exists, retrieval stays FTS until an embeddings backend is wired); project memory scopes (type exists, no project ids flow yet); Office-doc understanding without `localTextFallback` (provider-native images/PDFs only); Anthropic model listing (no list endpoint — type the model name).
+Experimental or partial: decision-model engines (all OFF by default; Jev/Laya/structured adapters ship, no endpoint measured in this environment — see `docs/architecture/decisions.md`); tool-retrieval recall@10 is 0.912 vs the 0.95 target (lexical only); scheduled jobs (experimental; run only while the app runs); project memory scopes (type exists, no project ids flow yet); Office-doc understanding without `localTextFallback` (provider-native images/PDFs only); Anthropic model listing (no list endpoint — type the model name).
 
 Known issues: full `vitest` suite is red on `master` (stale CSS assertions plus `node:sqlite` needing Node >= 22.5 outside the packaged app); macOS `icon.icns` only builds on macOS (`npm run assets` needs `iconutil`); Linux is not supported (Windows + macOS only); unsigned builds show OS warnings.
 

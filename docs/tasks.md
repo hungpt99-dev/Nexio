@@ -94,6 +94,28 @@ and a notification names the tool + exact action (never file contents).
 destructive actions. Task-scoped "always" expires with the task. Hidden-window
 tasks pause + notify identically.
 
+## Scheduled tasks
+
+Jobs (interval, daily, weekdays, cron) live in SQLite and fire only while
+Nexio is running — enable start-at-login + tray residency to keep it alive.
+Manage them with `/schedule` or Settings > Scheduled jobs (create, pause,
+resume, run-now, delete). Each job stores its prompt and its scope:
+
+- **Ask jobs** run the read-only loop in the job's own conversation.
+- **Do jobs** run the full agent loop: writes and shell commands park in
+  `waiting_approval` and raise a system notification naming the tool +
+  exact action. They wait for you — never auto-approved — and the kill
+  switch (`Ctrl+Alt+Esc`) stops them like any task.
+
+Times are matched in the job's timezone (blank = system zone) and are
+DST-safe: a spring-forward gap skips to the next day, a fall-back ambiguity
+fires once. Missed runs while the app was off follow the job's policy:
+`run-once` fires a single catch-up, `skip` waits for the next slot.
+History: each fire records `started`/`failed` on the job; the outcome lives
+in the run log under the fired task. Supported specs: `interval` ≥ 1 minute,
+`daily HH:MM`, `weekdays Mon,Wed HH:MM`, 5-field `cron` (names, ranges,
+steps; day-of-month/week follow standard OR semantics).
+
 ## UI
 
 Tasks view (`/tasks`, footer list icon with running+queued badge): title,

@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { IpcChannels } from '../shared/ipc-channels';
-import type { MemoryAction, MemoryPush, Mode, Settings, ExtAction, TaskAction, DecisionAction } from '../shared/types';
+import type { MemoryAction, MemoryPush, Mode, Settings, ExtAction, TaskAction, DecisionAction, ScheduleAction } from '../shared/types';
 import type { AgentEvent, ApprovalDecision } from './agent/types';
 
 export interface SendOpts {
@@ -127,6 +127,7 @@ const api = {
     invoke(IpcChannels.attachClassify, input) as Promise<{ verdict: string; reason?: string }>,
   attachClear: (runId: string) => invoke(IpcChannels.attachClear, runId) as Promise<boolean>,
   tasks: (a: TaskAction) => invoke(IpcChannels.tasks, a) as Promise<unknown>,
+  schedules: (a: ScheduleAction) => invoke(IpcChannels.schedules, a) as Promise<unknown>,
   decisions: (a: DecisionAction) => invoke(IpcChannels.decisions, a) as Promise<unknown>,
   contextRefresh: () => invoke(IpcChannels.contextRefresh),
   contextAttach: (source: string) => invoke(IpcChannels.contextAttach, source),
@@ -134,6 +135,7 @@ const api = {
   contextExclude: (id: string, excluded: boolean) => invoke(IpcChannels.contextExclude, id, excluded),
   contextStatus: () => invoke(IpcChannels.contextStatus),
   contextRoute: (text: string) => invoke(IpcChannels.contextRoute, text),
+  contextCapture: (mode?: string) => invoke(IpcChannels.contextCapture, mode) as Promise<unknown>,
   onContextEvent: (cb: (ev: { kind: string } & Record<string, unknown>) => void) => {
     const fn = (_e: unknown, data: { kind: string } & Record<string, unknown>) => cb(data);
     ipcRenderer.on(IpcChannels.contextEvent, fn);

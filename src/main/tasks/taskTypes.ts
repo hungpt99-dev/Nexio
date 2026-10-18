@@ -5,7 +5,7 @@
  * "spawn" is reserved for the user action; agent tools are subtask_*.
  */
 
-export type TaskOrigin = 'user_spawn' | 'user_queue' | 'agent_subtask';
+export type TaskOrigin = 'user_spawn' | 'user_queue' | 'agent_subtask' | 'scheduled';
 
 export type TaskPriority = 'normal' | 'high';
 
@@ -20,7 +20,7 @@ export type TaskState =
 
 export interface TaskSnapshot {
   workingFolder: string;
-  mode: 'do';
+  mode: 'do' | 'ask';
   provider: string;
   model: string;
   memorySnapshotIds: string[];

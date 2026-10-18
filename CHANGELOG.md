@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+- Reality pass: every user-facing feature is now real or removed. Removed
+  dead settings (`theme`, never applied; `memorySemantic`, no engine) with
+  legacy-row cleanup; wired `modeHotkey` for real (configurable in
+  Settings); every `SkipReason` maps to human text in both UIs (raw codes
+  never render); new capability registry (`src/main/capabilities/`) with
+  runtime probes + `scripts/check-claims.mjs` in `npm run verify`
+  (registry/IPC/settings/reasons/features doc must agree).
+- Screenshot capture (`src/main/context/screenshot.ts`): explicit only via
+  `/screen`, the panel Capture button or `context-capture` — active window
+  or display under the cursor, popup hidden during capture, deny-list
+  refusal, macOS Screen Recording probe with a direct Settings link,
+  thumbnail chip with preview + remove, native attachment pipeline
+  (vision notice otherwise), bytes in memory only. Replaces the hardcoded
+  `skipped:no_screen_context` state with a real probe.
+- Scheduled jobs (`src/main/scheduler/`): SQLite jobs (interval, daily,
+  weekdays, 5-field cron subset, no new dependency), TZ/DST-safe matching,
+  injectable-clock service with missed-run policies, `/schedule` command +
+  Settings UI (create/pause/resume/run-now/delete), Ask or Do scope per
+  job, each fire a normal turn in its own conversation (Do approvals park
+  + notify, kill switch applies). `SCHEMA_VERSION` 3→4 with the reset
+  guard; `scheduled` task origin; run history in the run log.
 - Decision Engine subsystem (`src/main/decisions/`): natural-language
   decisions (Ask-vs-Do routing, command dispatch, memory intent, context
   routing) are made by decision MODELS over typed choice/boolean/score
