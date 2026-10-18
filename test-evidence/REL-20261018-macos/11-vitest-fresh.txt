@@ -1,0 +1,30 @@
+       |                      ^
+    287|     db.close();
+    288|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯
+
+ FAIL  tests/unit/memory.test.ts > policy: memory tools are read/write split, Ask-safe only for search > forget-query counts matches for the confirmation card
+AssertionError: expected 1 to be 2 // Object.is equality
+
+- Expected
++ Received
+
+- 2
++ 1
+
+ ❯ tests/unit/memory.test.ts:667:66
+    665|     saveMemory(db, { kind: 'fact', text: 'invoice template april issue…
+    666|     saveMemory(db, { kind: 'fact', text: 'invoice template june paid',…
+    667|     expect(memoryForgetCount(db, { query: 'invoice template' })).toBe(…
+       |                                                                  ^
+    668|     expect(memoryForgetCount(db, { id: 'x' })).toBe(1);
+    669|     db.close();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/5]⎯
+
+ Test Files  3 failed | 59 passed (62)
+      Tests  5 failed | 847 passed | 1 skipped (853)
+   Start at  14:39:42
+   Duration  4.81s (transform 1.55s, setup 1.78s, collect 5.75s, tests 13.40s, environment 19ms, prepare 3.54s)
+

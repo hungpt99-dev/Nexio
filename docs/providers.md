@@ -131,21 +131,33 @@ aborts at 15 s. Model input suggests names from `listModels`.
    enforces that request/response literals stay inside `providers/<id>/`
    (`retry.ts` exempt as generic recovery).
 
-## Web search providers (verified 2026-10-18)
+## Model-native web search (verified 2026-10-18)
 
-| Provider | Endpoint | Auth | Limits |
-|---|---|---|---|
-| Brave Search | `GET https://api.search.brave.com/res/v1/web/search?q=…&count=…&country=…&search_lang=…&freshness=…` | `X-Subscription-Token: <key>` | count ≤ 20 (Nexio caps at 20, default 5); $5/1k requests, $5 free credit/mo; 50 QPS ([pricing](https://brave.com/search/api/) 2026-10-18) |
-| SearXNG (self-hosted) | `GET {base}/search?q=…&format=json&language=…&time_range=…` | none (your instance) | `format=json` must be enabled or the instance returns 403 ([search API docs](https://docs.searxng.org/dev/search_api.html) 2026-10-18) |
+| Provider | Tool | Endpoint | Auth | Facts recorded |
+|---|---|---|---|---|
+| Anthropic | server tool `web_search_20250305` (`allowed_callers: ["direct"]`, `max_uses: 5`) on Messages | `POST {base}/v1/messages` | `x-api-key` + `anthropic-version: 2023-06-01` | Results: `web_search_result{url,title,page_age}` + `cited_text` citations; error `too_many_requests` inside 200 responses; org-disabled 400s; $10/1k searches ([tool docs](https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-search-tool) 2026-10-18) |
+| Gemini | `google_search` tool on generateContent REST | `POST https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent` | `x-goog-api-key` | URLs from `groundingChunks[].web`, snippets from `groundingSupports[].segment`; supported Gemini 2.0 Flash through 4 Argon ([grounding docs](https://ai.google.dev/gemini-api/docs/grounding), last updated 2026-10-13, verified 2026-10-18) |
+| OpenAI | Responses-only | `POST https://api.openai.com/v1/responses` (`web_search` tool) | `Authorization: Bearer` | Chat Completions offers only the specialized `gpt-5-search-api` path ([web search docs](https://platform.openai.com/docs/guides/tools-web-search) 2026-10-18) — Nexio uses Chat Completions, so OpenAI native is **unsupported** by design |
+| Compatible | none | — | — | No standard native search; always unsupported |
 
-Notes: Brave freshness maps `day/week/month/year` → `pd/pw/pm/month-range`; SearXNG
-`time_range` maps `day` → `day`, `week/month` → `month`, `year` → `year`.
-Provider-native web search of the model API is NOT assumed — none of the
-current model adapters document it, so it is not offered.
+`supportsNativeSearch(model)` is a per-model capability with safe default
+`false` (`src/main/ai/providers/<id>/capabilities.ts`, regex tables):
+Anthropic `claude-opus/sonnet/haiku-3·4|3-7|3-5`, Gemini `gemini-(2|3|4)`.
+Request/response literals stay inside `providers/<id>/` (literal-contract
+test); `src/main/web/native.ts` only orchestrates.
 
-## Add a web provider
+## Keyless hosted fallback (verified 2026-10-18)
 
-1. Copy `src/main/web/providers/brave/` shape to `<id>/` (`<id>.ts` exporting
-   a `SearchProvider` + endpoint const).
-2. Register in `src/main/web/providers/index.ts` (`isWebProviderId` +
-   `createSearchProvider`). Adding a provider = one folder + registry line.
+DuckDuckGo HTML: `GET https://html.duckduckgo.com/html/?q=…` (no key, no
+account). Result blocks parsed from `a.result__a[href]` (`//duckduckgo.com/l/?uddg=<url>&…`)
+and `a.result__snippet` text. Best-effort surface (rate-limited
+aggressively, markup may change): anomaly pages map to `RATE_LIMITED`,
+empty pages to `NO_RESULTS`. See `src/main/web/duckduckgo.ts`.
+
+## Add a web backend
+
+1. Native: add the tool literal + endpoint/body builders to
+   `src/main/ai/providers/<id>/websearch.ts`, flip the capability row.
+2. Hosted: add one provider file under `src/main/web/` exporting a
+   `SearchProvider`, register it as the hosted branch in
+   `src/main/web/resolve-backend.ts`.

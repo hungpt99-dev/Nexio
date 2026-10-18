@@ -1,0 +1,60 @@
+big/blob-6mb.bin | kind=text flags=[] | decode=text:200000ch | extract=null | secrets=false credname=false
+docs/.hidden-note.txt | kind=text flags=[] | decode=text:12ch | extract=null | secrets=false credname=false
+docs/AI pháp luật.pdf | kind=pdf flags=[] | decode=text:12612ch | extract=null | secrets=false credname=false
+docs/app.log | kind=text flags=[] | decode=text:74ch | extract=null | secrets=false credname=false
+docs/bao cao 2026.txt | kind=text flags=[] | decode=text:37ch | extract=null | secrets=false credname=false
+docs/bom.txt | kind=text flags=[] | decode=text:28ch | extract=null | secrets=false credname=false
+docs/config.json | kind=text flags=[] | decode=text:45ch | extract=null | secrets=false credname=false
+docs/data.csv | kind=text flags=[] | decode=text:41ch | extract=null | secrets=false credname=false
+docs/empty.txt | kind=empty flags=[] | decode=text:0ch | extract=null | secrets=false credname=false
+docs/english.pdf | kind=pdf flags=[] | decode=text:11106ch | extract=null | secrets=false credname=false
+docs/macro-doc.docm | kind=docm flags=[macros] | decode=text:840ch | extract=null | secrets=false credname=false
+docs/notes.txt | kind=text flags=[] | decode=text:1144ch | extract=null | secrets=false credname=false
+docs/readme.md | kind=text flags=[] | decode=text:39ch | extract=null | secrets=false credname=false
+docs/report-draft.txt | kind=text flags=[] | decode=text:14ch | extract=null | secrets=false credname=false
+docs/report-final-COPY.txt | kind=text flags=[] | decode=text:14ch | extract=null | secrets=false credname=false
+docs/report-final.txt | kind=text flags=[] | decode=text:14ch | extract=null | secrets=false credname=false
+docs/report.docx | kind=docx flags=[] | decode=text:712ch | extract=null | secrets=false credname=false
+docs/scanned.pdf | kind=pdf flags=[] | decode=null | extract=null | secrets=false credname=false
+docs/slides.pptx | kind=pptx flags=[] | decode=text:681ch | extract=null | secrets=false credname=false
+docs/table.xlsx | kind=xlsx flags=[] | decode=text:909ch | extract=null | secrets=false credname=false
+docs/utf16be.txt | kind=text flags=[] | decode=text:24ch | extract=null | secrets=false credname=false
+docs/utf16le.txt | kind=text flags=[] | decode=text:42ch | extract=null | secrets=false credname=false
+docs/win1252.txt | kind=text flags=[] | decode=text:37ch | extract=null | secrets=false credname=false
+docs/ملاحظات.txt | kind=text flags=[] | decode=text:14ch | extract=null | secrets=false credname=false
+docs/日本語ノート.txt | kind=text flags=[] | decode=text:10ch | extract=null | secrets=false credname=false
+docs/😀 party 🎉.txt | kind=text flags=[] | decode=text:20ch | extract=null | secrets=false credname=false
+downloads/.DS_Store | kind=unknown flags=[] | decode=null | extract=null | secrets=false credname=false
+downloads/Cafe.txt | kind=text flags=[] | decode=text:11ch | extract=null | secrets=false credname=false
+downloads/CafeNFD.txt | kind=text flags=[] | decode=text:15ch | extract=null | secrets=false credname=false
+downloads/Thumbs.db | kind=text flags=[] | decode=text:15ch | extract=null | secrets=false credname=false
+downloads/archive.part | kind=text flags=[] | decode=text:21ch | extract=null | secrets=false credname=false
+downloads/report-final.txt | kind=text flags=[] | decode=text:14ch | extract=null | secrets=false credname=false
+downloads/video.crdownload | kind=text flags=[] | decode=text:22ch | extract=null | secrets=false credname=false
+downloads/~$locked.docx | kind=text flags=[] | decode=text:13ch | extract=null | secrets=false credname=false
+images/photo.jpg | kind=jpeg flags=[] | decode=text:4535ch | extract=null | secrets=false credname=false
+images/photo.png | kind=png flags=[] | decode=null | extract=null | secrets=false credname=false
+images/red.jpg | kind=jpeg flags=[] | decode=null | extract=null | secrets=false credname=false
+images/red.png | kind=png flags=[] | decode=null | extract=null | secrets=false credname=false
+locked/encrypted.docx | kind=office-encrypted flags=[encrypted] | decode=null | extract=null | secrets=false credname=false
+locked/encrypted.pdf | kind=pdf flags=[encrypted] | decode=text:85ch | extract=null | secrets=false credname=false
+project/2023-05-20 notes.txt | kind=text flags=[] | decode=text:11ch | extract=null | secrets=false credname=false
+project/2024-01-15 notes.txt | kind=text flags=[] | decode=text:14ch | extract=null | secrets=false credname=false
+project/2026-10-01 notes.txt | kind=text flags=[] | decode=text:14ch | extract=null | secrets=false credname=false
+project/link-outside.txt | kind=text flags=[] | decode=text:361ch | extract=null | secrets=false credname=false
+project/plan.md | kind=text flags=[] | decode=text:36ch | extract=null | secrets=false credname=false
+tmp/cache.tmp | kind=text flags=[] | decode=text:9ch | extract=null | secrets=false credname=false
+tmp/scratch.tmp | kind=text flags=[] | decode=text:9ch | extract=null | secrets=false credname=false
+tmp/session.log | kind=text flags=[] | decode=text:25ch | extract=null | secrets=false credname=false
+untrusted/arabic.txt | kind=text flags=[] | decode=text:42ch | extract=null | secrets=false credname=false
+untrusted/bomb.zip | kind=zip flags=[] | decode=null | extract=null | secrets=false credname=false
+untrusted/chinese.txt | kind=text flags=[] | decode=text:32ch | extract=null | secrets=false credname=false
+untrusted/cookies.txt | kind=text flags=[] | decode=text:86ch | extract=null | secrets=false credname=true
+untrusted/evil-renamed.docx | kind=exe flags=[executable] | decode=text:18ch | extract=null | secrets=false credname=false
+untrusted/fake-keys.txt | kind=text flags=[] | decode=text:62ch | extract=null | secrets=true credname=false
+untrusted/ghi-chu-vi.txt | kind=text flags=[] | decode=text:72ch | extract=null | secrets=false credname=false
+untrusted/id_rsa_fixture | kind=text flags=[] | decode=text:77ch | extract=null | secrets=true credname=true
+untrusted/nota-es.txt | kind=text flags=[] | decode=text:72ch | extract=null | secrets=false credname=false
+untrusted/note-en.txt | kind=text flags=[] | decode=text:70ch | extract=null | secrets=false credname=false
+untrusted/note-fr.txt | kind=text flags=[] | decode=text:50ch | extract=null | secrets=false credname=false
+untrusted/zipslip.zip | kind=zip flags=[] | decode=null | extract=null | secrets=false credname=false

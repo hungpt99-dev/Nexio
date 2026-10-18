@@ -23,7 +23,7 @@ export function addMessage(
   conversationId: string,
   role: ChatMessage['role'],
   content: string,
-  extra?: { mode?: ChatMessage['mode']; command?: string; args?: string },
+  extra?: { mode?: ChatMessage['mode']; command?: string; args?: string; ctx?: { attached: string[] } },
 ): ChatMessage {
   const m: ChatMessage = { id: uid('m-'), role, content, createdAt: Date.now(), ...extra };
   db.prepare('INSERT INTO messages (id, conversationId, role, content, createdAt, mode, command, args) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(

@@ -1,78 +1,42 @@
-import type { DatabaseSync } from 'node:sqlite';
 import type { Settings } from '../../shared/types';
-import type { SearchOptions, SearchResult, WebAvailability, WebProviderId } from './types';
+import type { SearchOptions, SearchResult, WebAvailability, WebErrorCode } from './types';
 import { MAX_FETCHES_PER_RUN, MAX_SEARCHES_PER_RUN, WebError } from './types';
-import { createSearchProvider, isWebProviderId } from './providers/index';
-import { getCachedFetch, getCachedSearch, searchKey, setCachedFetch, setCachedSearch } from './cache';
-import { readSecret } from '../secrets/index';
+import { consented, invalidateBackend, resolveWebBackend, type BackendKey, type ResolvedBackend } from './resolve-backend';
+import { getCachedSearch, searchKey, setCachedSearch } from './cache';
 import { scanSecretsText } from '../../shared/attachments';
 
-export const WEB_SECRET_PREFIX = 'web:';
-export function webSecretId(provider: string): string {
-  return `${WEB_SECRET_PREFIX}${provider}`;
+export const WEB_MAX_RESULTS = 5;
+
+export interface SearchDeps {
+  provider: string;
+  model: string;
+  apiKey: string;
+  baseUrl?: string;
+  fetchFn?: typeof fetch;
 }
 
-export interface WebConfig {
-  provider: WebProviderId;
-  credential: string;
-  maxResults: number;
-  allowAsk: boolean;
-  region?: string;
-  language?: string;
-  saveQueries: boolean;
-  allowlist: string[];
+/** Last backend health, for the Settings status line (in-memory only). */
+let lastHealth: { backend: string; ok: boolean; at: number; detail: string } | null = null;
+export function getWebHealth(): typeof lastHealth {
+  return lastHealth;
+}
+function noteHealth(backend: string, ok: boolean, detail: string): void {
+  lastHealth = { backend, ok, at: Date.now(), detail };
 }
 
-export function getWebConfig(s: Settings, db?: DatabaseSync): { config: WebConfig; keyState: 'ok' | 'missing' | 'unreadable' } {
-  const provider = (s.webProvider || 'off') as WebProviderId;
-  const maxResults = Math.min(Math.max(s.webMaxResults || 5, 1), 20);
-  const allowAsk = s.webAllowAsk !== false;
-  const cfg: WebConfig = {
-    provider,
-    credential: '',
-    maxResults,
-    allowAsk,
-    region: s.webRegion || undefined,
-    language: s.webLanguage || undefined,
-    saveQueries: s.webSaveQueries === true,
-    allowlist: s.webAllowlist || [],
-  };
-  if (provider === 'off') return { config: cfg, keyState: 'missing' };
-  if (provider === 'searxng') {
-    const url = (s.webUrl || '').trim();
-    if (!url) return { config: cfg, keyState: 'missing' };
-    cfg.credential = url;
-    return { config: cfg, keyState: 'ok' };
-  }
-  if (db) {
-    const r = readSecret(db, webSecretId(provider));
-    if (!r.ok) return { config: cfg, keyState: r.reason === 'missing' ? 'missing' : 'unreadable' };
-    cfg.credential = r.value;
-    if (!cfg.credential) return { config: cfg, keyState: 'missing' };
-    return { config: cfg, keyState: 'ok' };
-  }
-  const envKey = process.env.NEXIO_SEARCH_KEY || '';
-  if (!envKey && provider === 'brave') return { config: cfg, keyState: 'missing' };
-  cfg.credential = provider === 'brave' ? envKey : (s.webUrl || '').trim();
-  if (!cfg.credential) return { config: cfg, keyState: 'missing' };
-  return { config: cfg, keyState: 'ok' };
+/** Structured availability, computed each run (no secrets logged). */
+export function getWebAvailability(s: Settings, provider: string, model: string, apiKey: string): WebAvailability {
+  if (s.webAllow === false) return { state: 'unavailable', reason: 'disabled' };
+  const backend = resolveWebBackend({ provider, model, apiKey, baseUrl: s.baseUrl, fetchFn: undefined });
+  if (!consented(s, backend.key)) return { state: 'needs_consent', backend: backend.key, name: backend.name };
+  return { state: 'available', backend: backend.key, name: backend.name };
 }
 
-export function getAvailability(s: Settings, mode: 'ask' | 'do', db?: DatabaseSync): WebAvailability {
-  const provider = (s.webProvider || 'off') as WebProviderId;
-  if (!provider || provider === 'off') return { state: 'not_configured' };
-  if (!isWebProviderId(provider)) return { state: 'not_configured' };
-  if (mode === 'ask') {
-    const { config, keyState } = getWebConfig(s, db);
-    if (keyState === 'missing') return { state: 'not_configured' };
-    if (keyState === 'unreadable') return { state: 'error', code: 'KEY_UNREADABLE' };
-    if (!config.allowAsk) return { state: 'disabled_in_mode' };
-    return { state: 'available', provider };
-  }
-  const { keyState } = getWebConfig(s, db);
-  if (keyState === 'missing') return { state: 'not_configured' };
-  if (keyState === 'unreadable') return { state: 'error', code: 'KEY_UNREADABLE' };
-  return { state: 'available', provider };
+export function describeWebState(s: Settings, provider: string, model: string, apiKey: string): string {
+  const a = getWebAvailability(s, provider, model, apiKey);
+  if (a.state === 'available') return 'available';
+  if (a.state === 'needs_consent') return 'needs_consent';
+  return 'unavailable:disabled';
 }
 
 /** Per-run caps. Counts live on the run, never global. */
@@ -99,7 +63,7 @@ export function reformulateQuery(q: string): string | null {
   const parts = spaced.split(/\s+/).filter(Boolean);
   if (parts.length <= 1) {
     const lower = t.toLowerCase();
-    const known = ['anthropic', 'github', 'scion', 'searxng', 'brave'];
+    const known = ['anthropic', 'github', 'scion', 'duckduckgo', 'gemini'];
     for (const k of known) {
       const i = lower.indexOf(k);
       if (i > 0) return `${t.slice(0, i).trim()} ${t.slice(i).trim()}`;
@@ -112,76 +76,116 @@ export function reformulateQuery(q: string): string | null {
   return cand || null;
 }
 
+export interface RunSearchOpts extends SearchOptions {
+  /** Explicit user action (Test button, /search, inline confirm): skip ask-before. */
+  skipAskBefore?: boolean;
+}
+
+function errorCode(e: unknown): WebErrorCode | 'OTHER' {
+  return e instanceof WebError ? e.code : 'OTHER';
+}
+
+/** One fallthrough per query, only to a consented backend. Never silent. */
 export async function runSearch(
   s: Settings,
-  db: DatabaseSync | undefined,
+  deps: SearchDeps,
   query: string,
-  opts: SearchOptions,
+  opts: RunSearchOpts,
   budget?: WebRunBudget,
   logQuery?: (q: string) => void,
-): Promise<{ results: SearchResult[]; provider: string; ms: number; cached: boolean; reformulated?: string }> {
-  const { config, keyState } = getWebConfig(s, db);
-  if (config.provider === 'off') throw new WebError('NOT_CONFIGURED', 'web search is off. Set it up in Settings > Web search', { action: 'open-settings' });
-  if (keyState === 'unreadable') throw new WebError('KEY_UNREADABLE', 'saved search key cannot be read. Re-enter it in Settings > Web search', { action: 'open-settings' });
-  if (keyState === 'missing') throw new WebError('NOT_CONFIGURED', 'web search is off. Set it up in Settings > Web search', { action: 'open-settings' });
-  if (!isWebProviderId(config.provider)) throw new WebError('NOT_CONFIGURED', 'web search is off. Set it up in Settings > Web search', { action: 'open-settings' });
+): Promise<{ results: SearchResult[]; backend: string; backendKey: BackendKey; ms: number; cached: boolean; reformulated?: string }> {
+  if (s.webAllow === false) throw new WebError('DISABLED', 'web search is off. Turn it on in Settings > Web search', { action: 'open-settings' });
   if (looksLikeSecrets(query)) throw new WebError('PROVIDER_ERROR', 'query looks like it contains secrets; refusing to send');
   if (budget) checkSearchBudget(budget);
-  const count = Math.min(Math.max(opts.count || config.maxResults || 5, 1), 20);
-  const provider = createSearchProvider(config.provider, config.credential, opts.fetchFn);
-  const key = searchKey(config.provider, query, count);
+  // Attempts count even on cache hits (bounds runaway loops, not just provider calls).
+  if (budget) budget.searches++;
+  const count = Math.min(Math.max(opts.count || WEB_MAX_RESULTS, 1), 20);
+  const baseInput = { provider: deps.provider, model: deps.model, apiKey: deps.apiKey, baseUrl: deps.baseUrl, fetchFn: opts.fetchFn || deps.fetchFn };
+  let backend: ResolvedBackend = resolveWebBackend(baseInput);
+  const needConsent = (b: ResolvedBackend): void => {
+    if (!consented(s, b.key)) {
+      throw new WebError('CONSENT_REQUIRED', `web search via ${b.name} needs your go-ahead`, { action: 'open-settings', backend: b.key, privacyUrl: b.privacyUrl });
+    }
+  };
+  needConsent(backend);
+  if (s.webAskBefore === true && !opts.skipAskBefore) {
+    throw new WebError('NEEDS_CONFIRM', `search the web via ${backend.name} for "${query.trim().slice(0, 120)}"?`, { action: null, backend: backend.key });
+  }
+  const key = searchKey(backend.key, query, count);
   const hit = getCachedSearch<{ results: SearchResult[] }>(key);
   const t0 = Date.now();
-  if (hit) return { results: hit.results, provider: config.provider, ms: Date.now() - t0, cached: true };
+  if (hit) {
+    noteHealth(backend.name, true, 'cached');
+    return { results: hit.results, backend: backend.name, backendKey: backend.key, ms: Date.now() - t0, cached: true };
+  }
   const searchOpts: SearchOptions = {
-    allowlist: config.allowlist,
     count,
     signal: opts.signal,
-    fetchFn: opts.fetchFn,
+    fetchFn: opts.fetchFn || deps.fetchFn,
     ...(opts.recency ? { recency: opts.recency } : {}),
-    ...(config.region || opts.country ? { country: opts.country || config.region } : {}),
-    ...(config.language || opts.language ? { language: opts.language || config.language } : {}),
+  };
+  const attempt = async (b: ResolvedBackend, q: string): Promise<SearchResult[]> => {
+    const results = await b.search(q, searchOpts);
+    setCachedSearch(searchKey(b.key, q, count), { results });
+    if (s.webSaveQueries === true && logQuery) logQuery(q);
+    noteHealth(b.name, true, `${results.length} result(s)`);
+    return results;
   };
   try {
-    const results = await provider.search(query, searchOpts);
-    if (budget) budget.searches++;
-    setCachedSearch(key, { results });
-    if (config.saveQueries && logQuery) logQuery(query);
-    return { results, provider: config.provider, ms: Date.now() - t0, cached: false };
+    const results = await attempt(backend, query);
+    return { results, backend: backend.name, backendKey: backend.key, ms: Date.now() - t0, cached: false };
   } catch (e) {
     if (e instanceof WebError && e.code === 'NO_RESULTS') {
       const retry = reformulateQuery(query);
       if (retry && retry.toLowerCase() !== query.toLowerCase()) {
-        const results = await provider.search(retry, searchOpts);
-        if (budget) budget.searches++;
-        setCachedSearch(searchKey(config.provider, retry, count), { results });
-        return { results, provider: config.provider, ms: Date.now() - t0, cached: false, reformulated: retry };
+        try {
+          const results = await attempt(backend, retry);
+          return { results, backend: backend.name, backendKey: backend.key, ms: Date.now() - t0, cached: false, reformulated: retry };
+        } catch (e2) {
+          throw e2;
+        }
       }
     }
-    throw e;
+    // Single fallthrough per query, only to a consented backend.
+    const transient = e instanceof WebError && (e.code === 'RATE_LIMITED' || e.code === 'TIMEOUT' || e.code === 'NETWORK');
+    const hard = e instanceof WebError && (e.code === 'PROVIDER_ERROR' || e.code === 'UNSUPPORTED_TYPE');
+    if ((transient || hard) && backend.key !== 'hosted:duckduckgo') {
+      invalidateBackend(baseInput, !transient);
+      const next = resolveWebBackend(baseInput);
+      if (next.key !== backend.key) {
+        try {
+          needConsent(next);
+        } catch (consentErr) {
+          throw consentErr;
+        }
+        const results = await attempt(next, query);
+        return { results, backend: next.name, backendKey: next.key, ms: Date.now() - t0, cached: false, reformulated: undefined };
+      }
+      invalidateBackend(baseInput);
+    }
+    if (e instanceof WebError) {
+      if (e.code !== 'NO_RESULTS') noteHealth(backend.name, false, errorCode(e));
+      throw e;
+    }
+    noteHealth(backend.name, false, 'NETWORK');
+    throw new WebError('NETWORK', `search failed: ${(e as Error).message}`, { action: 'retry' });
   }
 }
 
 export async function testWebConfig(
   s: Settings,
-  db: DatabaseSync | undefined,
+  deps: SearchDeps,
   fetchFn: typeof fetch = fetch,
-): Promise<{ ok: boolean; message: string; ms?: number; count?: number }> {
+): Promise<{ ok: boolean; message: string; backend?: string; ms?: number; count?: number }> {
   const t0 = Date.now();
   try {
-    const r = await runSearch(s, db, 'Nexio connectivity test', { count: 1, fetchFn }, undefined, undefined);
+    // The Test button is an explicit user action: consent + ask-before are bypassed.
+    const backend = resolveWebBackend({ ...deps, fetchFn });
+    const r = await runSearch({ ...s, webAskBefore: false, webConsent: { ...s.webConsent, [backend.key]: true } }, deps, 'Nexio connectivity test', { count: 1, fetchFn, skipAskBefore: true }, undefined, undefined);
     const ms = Date.now() - t0;
-    return { ok: true, message: `Works: ${r.results.length} result(s) in ${ms} ms`, ms, count: r.results.length };
+    return { ok: true, message: `Works via ${r.backend}: ${r.results.length} result(s) in ${ms} ms`, backend: r.backend, ms, count: r.results.length };
   } catch (e) {
-    if (e instanceof WebError) return { ok: false, message: `${e.code}: ${e.message.replace(/^.*?: /, '')}` };
+    if (e instanceof WebError) return { ok: false, message: `${e.code}: ${e.message.replace(/^.*?: /, '')}`, backend: undefined };
     return { ok: false, message: `NETWORK: ${(e as Error).message}` };
   }
-}
-
-export function describeWebState(s: Settings, mode: 'ask' | 'do', db?: DatabaseSync): string {
-  const a = getAvailability(s, mode, db);
-  if (a.state === 'available') return 'available';
-  if (a.state === 'not_configured') return 'not_configured';
-  if (a.state === 'disabled_in_mode') return 'disabled_in_mode';
-  return `error:${a.code}`;
 }

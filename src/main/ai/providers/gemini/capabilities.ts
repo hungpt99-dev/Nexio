@@ -14,7 +14,10 @@ const DEFAULT: ProviderCapabilities = {
 // path carries no thinking field — requests stay small and reasoning-aware.
 // why: table keeps model knowledge out of request code
 const TABLE: Array<{ match: RegExp; caps: Partial<ProviderCapabilities> }> = [
-  { match: /thinking|gemini-2\.5|gemini-3/i, caps: { reasoningAware: true } },
+  { match: /thinking|gemini-2\.5|gemini-3/i, caps: { reasoningAware: true, supportsNativeSearch: true } },
+  // Model-native grounding with Google Search (google_search tool, generateContent REST).
+  // Verified 2026-10-18: https://ai.google.dev/gemini-api/docs/grounding (2.0 Flash through 4 Argon).
+  { match: /gemini-(2|3|4)/i, caps: { supportsNativeSearch: true } },
 ];
 
 export function capabilitiesFor(model: string): ProviderCapabilities {

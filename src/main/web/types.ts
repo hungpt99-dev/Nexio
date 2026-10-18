@@ -1,5 +1,3 @@
-export type WebProviderId = 'off' | 'brave' | 'searxng';
-
 export interface SearchResult {
   title: string;
   url: string;
@@ -11,8 +9,6 @@ export interface SearchResult {
 export interface SearchOptions {
   count?: number;
   recency?: 'day' | 'week' | 'month' | 'year';
-  country?: string;
-  language?: string;
   signal?: AbortSignal;
   fetchFn?: typeof fetch;
   /** Extra hosts allowed to bypass SSRF protection. */
@@ -20,14 +16,12 @@ export interface SearchOptions {
 }
 
 export interface SearchProvider {
-  id: Exclude<WebProviderId, 'off'>;
+  id: string;
   label: string;
   search(query: string, opts: SearchOptions): Promise<SearchResult[]>;
 }
 
 export type WebErrorCode =
-  | 'NOT_CONFIGURED'
-  | 'KEY_UNREADABLE'
   | 'RATE_LIMITED'
   | 'TIMEOUT'
   | 'NETWORK'
@@ -36,32 +30,39 @@ export type WebErrorCode =
   | 'BLOCKED_URL'
   | 'TOO_LARGE'
   | 'UNSUPPORTED_TYPE'
-  | 'DISABLED';
+  | 'DISABLED'
+  | 'CONSENT_REQUIRED'
+  | 'NEEDS_CONFIRM'
+  | 'UNAVAILABLE';
 
 export class WebError extends Error {
   code: WebErrorCode;
   status?: number;
   action?: 'open-settings' | 'retry' | null;
-  constructor(code: WebErrorCode, message: string, opts?: { status?: number; action?: 'open-settings' | 'retry' | null }) {
+  /** Backend key for consent routing (CONSENT_REQUIRED). */
+  backend?: string;
+  privacyUrl?: string;
+  constructor(code: WebErrorCode, message: string, opts?: { status?: number; action?: 'open-settings' | 'retry' | null; backend?: string; privacyUrl?: string }) {
     super(`${code}: ${message}`);
     this.name = 'WebError';
     this.code = code;
     this.status = opts?.status;
     this.action = opts?.action ?? null;
+    this.backend = opts?.backend;
+    this.privacyUrl = opts?.privacyUrl;
   }
 }
 
+/** Structured availability, computed each run. No keys, no setup. */
 export type WebAvailability =
-  | { state: 'available'; provider: string }
-  | { state: 'not_configured' }
-  | { state: 'disabled_in_mode' }
-  | { state: 'error'; code: WebErrorCode };
+  | { state: 'available'; backend: string; name: string }
+  | { state: 'needs_consent'; backend: string; name: string }
+  | { state: 'unavailable'; reason: 'disabled' };
 
 export function availabilityState(a: WebAvailability): string {
   if (a.state === 'available') return 'available';
-  if (a.state === 'not_configured') return 'not_configured';
-  if (a.state === 'disabled_in_mode') return 'disabled_in_mode';
-  return `error:${a.code}`;
+  if (a.state === 'needs_consent') return 'needs_consent';
+  return 'unavailable:disabled';
 }
 
 export const MAX_SEARCHES_PER_RUN = 8;

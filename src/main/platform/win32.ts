@@ -149,4 +149,42 @@ export const win32Adapter: PlatformAdapter = {
       return path.join(path.dirname(dbFile), 'logs');
     }
   },
+
+  /** Context capture: best-effort OS queries, typed skips, never throws. */
+  async getActiveWindow(signal: AbortSignal) {
+    const { winActiveWindow } = await import('./context-win32');
+    try {
+      return await winActiveWindow(signal, process.pid);
+    } catch {
+      return null;
+    }
+  },
+  async readSelection(win, signal) {
+    const { winReadSelection } = await import('./context-win32');
+    const hwnd = (win as { hwnd?: number }).hwnd;
+    if (!hwnd) return { ok: false, skip: 'unsupported_app' as const };
+    try {
+      return await winReadSelection(hwnd, signal);
+    } catch {
+      return { ok: false, skip: 'unsupported_app' as const };
+    }
+  },
+  async readSelectedFiles(signal) {
+    const { winReadSelectedFiles } = await import('./context-win32');
+    try {
+      return await winReadSelectedFiles(signal);
+    } catch {
+      return { ok: false, skip: 'unsupported_app' as const };
+    }
+  },
+  async readBrowserPage(win, signal) {
+    const { winReadBrowserPage } = await import('./context-win32');
+    const hwnd = (win as { hwnd?: number }).hwnd;
+    if (!hwnd) return { ok: false, skip: 'unsupported_app' as const };
+    try {
+      return await winReadBrowserPage(hwnd, signal);
+    } catch {
+      return { ok: false, skip: 'unsupported_app' as const };
+    }
+  },
 };

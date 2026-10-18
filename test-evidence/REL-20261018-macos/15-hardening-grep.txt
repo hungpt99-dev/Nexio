@@ -1,0 +1,2 @@
+src/main/popup.ts:52:      // preload uses a relative require (../shared); keep sandbox off so it loads.
+src/main/popup.ts:54:      sandbox: false,

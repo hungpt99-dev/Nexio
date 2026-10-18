@@ -1,0 +1,36 @@
+
+> nexio@0.1.0 assets:check
+> node scripts/check-assets.mjs
+
+ok assets/icon.svg viewBox 0 0 512 512, no C2PA
+ok assets/banner.svg viewBox 0 0 1280 360, no C2PA
+ok assets/social-preview.svg viewBox 0 0 1280 640, no C2PA
+ok assets/icon.png 1024x1024
+ok assets/icons/icon-16.png 16x16
+ok assets/icons/icon-24.png 24x24
+ok assets/icons/icon-32.png 32x32
+ok assets/icons/icon-48.png 48x48
+ok assets/icons/icon-64.png 64x64
+ok assets/icons/icon-128.png 128x128
+ok assets/icons/icon-256.png 256x256
+ok assets/icons/icon-512.png 512x512
+ok assets/icons/icon-1024.png 1024x1024
+ok assets/tray/tray-16.png 16x16
+ok assets/tray/tray-20.png 20x20
+ok assets/tray/tray-24.png 24x24
+ok assets/tray/tray-32.png 32x32
+ok assets/Nexio-Template.png 18x18
+ok assets/Nexio-Template@2x.png 36x36
+ok assets/banner.png 2560x720
+ok assets/social-preview.png 1280x640
+ok docs/images/icon-128.png 128x128
+ok assets/icon.ico 372526B
+ok assets/icon.icns 111587B
+ok assets/Nexio-Template.png monochrome
+ok assets/Nexio-Template@2x.png monochrome
+ok social-preview.png 44485B < 1MB
+ok builder ref assets/icon.ico
+ok builder ref assets/icon.icns
+ok builder ref assets/icon.icns
+ok builder ref assets/icons
+assets:check passed

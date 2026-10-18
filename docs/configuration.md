@@ -37,16 +37,19 @@ Settings live in the app SQLite DB (`getSettings`/`updateSettings` in
 | `taskSubmitDefault` | `'ask'` | Saved while-busy default: `ask` / `spawn` / `queue` / `replace`. |
 | `taskResume` | `'ask'` | Waiting tasks on start: `ask` / `resume` / `discard`. |
 | `taskNotifications` | `true` | Approval + finished-family notifications. |
+| `contextEnabled` | `true` | Master switch: use what I'm looking at (after one-time notice). |
+| `contextAutoAttach` | `'all'` | `'all'` (selection+files) | `'ask'` (one-tap choice) | `'off'`. |
+| `contextSources` | `{}` | Per-source toggles (selection/files/folder/clipboard/page; absent = on). |
+| `contextCopyFallback` | `false` | Ctrl/Cmd+C fallback for apps that don't share selection (restores clipboard). |
+| `contextDenyList` | `[]` | Apps never captured (exe/bundle/name/title substrings). |
+| `contextNoticeDismissed` | `false` | One-time explanation shown. |
+| `contextSaveFileNames` | `false` | Log file names (off = hashes only). |
 | `taskPruneDays` | `30` | Prune terminal tasks/runs older than N days (1–3650). |
-| `webProvider` | `'off'` | Web search provider: `off` \| `brave` \| `searxng` (Settings > Web search). Off = web tools not offered. |
-| `webUrl` | `''` | SearXNG base URL (self-hosted, no key). |
-| `webMaxResults` | `5` | Max results per search (1–20). |
-| `webAllowAsk` | `true` | Allow web search in Ask mode (default ON once configured). |
-| `webRegion` | `''` | Region hint (e.g. `US`) sent to the search provider. |
-| `webLanguage` | `''` | Language hint (e.g. `en`) sent to the search provider. |
+| `webAllow` | `true` | Master switch for zero-config web search (no setup needed). |
+| `webAskBefore` | `false` | Ask before each search (approval card in Do, inline confirm in Ask). |
 | `webSaveQueries` | `false` | Store search queries in the run log (off = never logged in full). |
+| `webConsent` | `{}` | Per-backend consent: `native:anthropic` / `native:gemini` / `hosted:duckduckgo`. |
 | `webAllowlist` | `[]` | Extra hosts allowed to bypass SSRF protection. |
-| `web:brave` secret | — | Brave key via secrets module (`webSetKey`), never in settings. |
 | `sendTemperature` | `true` | Custom provider only: send `temperature`. Off for strict local servers. |
 | `compatibleImages` | `auto` | Custom provider only: image support `auto` (probe) / `on` / `off`. Off holds images back with the non-vision notice. |
 | `localTextFallback` | `false` | Extract Office/doc text locally when the provider can't read it (chip + sent text labelled "text extracted locally"). Off refuses with an unsupported notice. |

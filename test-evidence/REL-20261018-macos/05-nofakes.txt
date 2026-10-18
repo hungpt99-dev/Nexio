@@ -1,0 +1,1 @@
+[no-fakes] OK: no test providers in packaged inputs

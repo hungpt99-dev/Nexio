@@ -5,25 +5,67 @@ const messagesEl = $('messages'), inputEl = $('input'), paletteEl = $('palette')
 let convId = null, paletteItems = [], paletteActive = 0, assistantDiv = null;
 let mode = 'chat', reqSeq = 0;
 let settingsProvider = 'openai';
-let webProviderSel = 'off';
-function paintWebProv() {
-  const seg = $('set-webprov-seg');
-  if (seg) seg.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.webprov === webProviderSel));
-  const fk = $('fld-webkey');
-  if (fk) fk.classList.toggle('hidden', webProviderSel !== 'brave');
-  const fu = $('fld-weburl');
-  if (fu) fu.classList.toggle('hidden', webProviderSel !== 'searxng');
-  const priv = $('web-privacy');
-  if (priv) {
-    const label = webProviderSel === 'brave' ? 'Brave Search' : webProviderSel === 'searxng' ? 'your SearXNG instance' : 'no provider (web search off)';
-    priv.textContent = `Your search query is sent to ${label}. Nothing else leaves this computer.`;
-  }
+async function paintWebStatus() {
+  const line = $('web-status-line');
+  if (!line || !window.nexio.webStatus) return;
+  try {
+    const st = await window.nexio.webStatus();
+    if (st.state === 'available') line.textContent = `Backend: ${st.name} · ready`;
+    else if (st.state === 'needs_consent') line.textContent = `Backend: ${st.name} · needs your go-ahead (asked when search is needed)`;
+    else line.textContent = 'Backend: off';
+  } catch (e) { line.textContent = ''; }
+}
+var ctxAutoSel = 'all';
+function paintCtxAuto(v) {
+  ctxAutoSel = v || 'all';
+  const seg = $('set-ctxauto-seg');
+  if (seg) seg.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.ctxauto === ctxAutoSel));
+}
+var CTX_SRC_LABELS = { selection: 'Selection', files: 'Files', folder: 'Folder', clipboard: 'Clipboard', page: 'Page' };
+function paintCtxSources(c) {
+  const host = $('set-ctx-src');
+  if (!host) return;
+  host.innerHTML = '';
+  Object.keys(CTX_SRC_LABELS).forEach(function (k) {
+    const lab = document.createElement('label');
+    lab.className = 'chip-toggle';
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.dataset.ctxsrc = k;
+    input.checked = !c || c[k] !== false;
+    const tx = document.createElement('span');
+    tx.className = 'chip-tx';
+    const check = document.createElement('span');
+    check.className = 'chip-check';
+    check.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><polyline points="4 12.5 10 18.5 20 6"/></svg>';
+    tx.appendChild(check);
+    const lb = document.createElement('span');
+    lb.textContent = t('context.opt' + ({ selection: 'Selected', files: 'Files', folder: 'Folder', page: 'Page', clipboard: 'Clipboard' }[k] || k));
+    tx.appendChild(lb);
+    lab.appendChild(input);
+    lab.appendChild(tx);
+    host.appendChild(lab);
+  });
+}
+function paintCtxPerm() {
+  const note = $('ctx-perm');
+  const btn = $('btn-ctx-perm');
+  if (!note || !btn) return;
+  var isMac = false;
+  try { isMac = typeof platformInfo !== 'undefined' && platformInfo && platformInfo.os === 'darwin'; } catch (e) {}
+  if (!isMac && !(navigator && /Mac/.test(navigator.platform || ''))) { note.classList.add('hidden'); btn.classList.add('hidden'); return; }
+  note.classList.remove('hidden');
+  note.textContent = 'macOS: reading the selection needs Accessibility permission; Finder selection needs Automation for Finder. Grant only when a chip asks for it.';
+  btn.classList.remove('hidden');
 }
 (function () {
-  const seg = $('set-webprov-seg');
+  const seg = $('set-ctxauto-seg');
   if (!seg) return;
-  seg.querySelectorAll('button').forEach((b) => b.addEventListener('click', (e) => { e.preventDefault(); webProviderSel = b.dataset.webprov; paintWebProv(); }));
+  seg.querySelectorAll('button').forEach((b) => b.addEventListener('click', (e) => { e.preventDefault(); paintCtxAuto(b.dataset.ctxauto); }));
 })();
+if ($('btn-ctx-perm')) $('btn-ctx-perm').onclick = async () => {
+  try { await window.nexio.openSystemSettings('accessibility'); } catch (e) {}
+};
 // True once the user explicitly picks a pill this session (wins over intent routing).
 let modeExplicitSession = false;
 function selectMode(m) { modeExplicitSession = true; setMode(m); }
@@ -382,6 +424,20 @@ function addMsg(role, content, opts) {
     yp.onkeydown = (e) => {
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleYou(e.currentTarget); }
     };
+    try {
+      var sent = (typeof ctxAttachedViews === 'function' ? ctxAttachedViews() : []);
+      if (sent.length) {
+        var crow = document.createElement('div');
+        crow.className = 'ctx-sent';
+        sent.forEach(function (v) {
+          var c = document.createElement('span');
+          c.className = 'ctx-sent-chip';
+          c.textContent = v.label;
+          crow.appendChild(c);
+        });
+        div.appendChild(crow);
+      }
+    } catch (e) {}
   } else {
     div.innerHTML = mdLite(content);
     decorateCode(div);
@@ -639,6 +695,92 @@ async function ensureConv() {
 }
 
 let sending = false;
+/* --- Web search UI: results, consent, offline (zero-config) --- */
+function renderWebResults(host, r, q) {
+  host.innerHTML = '';
+  const title = document.createElement('div');
+  title.innerHTML = `<strong>${esc(t('web.resultsFor', { query: q }))}</strong> <span class="muted">${esc(String((r && r.ms) || 0))} ms via ${esc((r && r.backend) || 'web')}</span>`;
+  host.appendChild(title);
+  if (r && r.reformulated) {
+    const rf = document.createElement('div');
+    rf.className = 'muted';
+    rf.textContent = t('web.retriedAs', { query: r.reformulated });
+    host.appendChild(rf);
+  }
+  const list = document.createElement('div');
+  list.className = 'web-results';
+  ((r && r.results) || []).forEach((it, i) => {
+    const row = document.createElement('div');
+    row.className = 'web-result';
+    const a = document.createElement('a');
+    a.href = '#';
+    a.textContent = `[${i + 1}] ${it.title || it.url}`;
+    a.onclick = (e) => { e.preventDefault(); if (window.nexio.openExternal) window.nexio.openExternal(it.url); };
+    const meta = document.createElement('div');
+    meta.className = 'muted';
+    meta.textContent = it.source || it.url;
+    const sn = document.createElement('div');
+    sn.textContent = it.snippet || '';
+    row.appendChild(a); row.appendChild(meta); row.appendChild(sn);
+    list.appendChild(row);
+  });
+  host.appendChild(list);
+  try { agentScroll(); requestResize(); } catch (e) {}
+}
+function showWebOff(host, afterEl) {
+  const row = document.createElement('div');
+  row.className = 'web-offrow';
+  row.textContent = t('web.offMsg') + ' ';
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = 'btn'; b.textContent = t('web.openSettings');
+  b.onclick = () => togglePanel('settings');
+  row.appendChild(b);
+  if (afterEl && afterEl.parentNode === host) host.insertBefore(row, afterEl.nextSibling);
+  else host.appendChild(row);
+  try { agentScroll(); requestResize(); } catch (e) {}
+}
+/** Inline consent notice: names the backend, links its privacy policy. Never silent. */
+async function showWebConsent(host, onAllow) {
+  host.innerHTML = '';
+  let st = null;
+  try { st = await window.nexio.webStatus(); } catch (e) { /* fall through */ }
+  if (!st || st.state === 'unavailable') { showWebOff(host); return; }
+  const box = document.createElement('div');
+  box.className = 'web-offrow';
+  const sp = document.createElement('span');
+  sp.textContent = t('web.consentLine', { backend: st.name || 'web search' });
+  box.appendChild(sp);
+  if (st.privacyUrl) {
+    const a = document.createElement('a');
+    a.href = '#';
+    a.textContent = t('web.privacyPolicy');
+    a.onclick = (e) => { e.preventDefault(); if (window.nexio.openExternal) window.nexio.openExternal(st.privacyUrl); };
+    box.appendChild(a);
+  }
+  const allow = document.createElement('button');
+  allow.type = 'button'; allow.className = 'btn'; allow.textContent = t('web.allow');
+  allow.onclick = async function () {
+    allow.disabled = true;
+    try {
+      if (st.backend) await window.nexio.webConsent(st.backend, true);
+      box.remove();
+      if (typeof onAllow === 'function') onAllow();
+    } catch (e) {
+      allow.disabled = false;
+      const err = document.createElement('div');
+      err.className = 'web-fail';
+      err.textContent = errText(e);
+      host.appendChild(err);
+    }
+  };
+  const not = document.createElement('button');
+  not.type = 'button'; not.className = 'switch-do-chip'; not.textContent = t('web.notNow');
+  not.onclick = function () { box.remove(); try { requestResize(); } catch (e) {} };
+  box.appendChild(allow); box.appendChild(not);
+  host.appendChild(box);
+  try { agentScroll(); requestResize(); } catch (e) {}
+}
+
 async function send(submitOpts) {
   // Serialize submissions: the agentRunning() check below races with the
   // first await inside (two rapid Enters would orphan the first run —
@@ -757,52 +899,49 @@ async function sendInner(submitOpts) {
         return void send(trigger === '/spawn' ? { taskAction: 'spawn' } : { queued: true });
       }
       if (trigger === '/cancel') return void runCancelCommand(rest.join(' '));
+      if (trigger === '/context' || trigger === '/clip' || trigger === '/sel') {
+        startTurn();
+        addMsg('user', text);
+        showView('run');
+        try {
+          if (trigger === '/context') {
+            await ctxRefresh();
+            var st = null;
+            try { st = await window.nexio.contextStatus(); } catch (e) {}
+            if (st && st.sources && st.sources.length) assistantDiv = addMsg('assistant', t('context.whatSee', { sources: st.sources.join(', '), attached: st.attached.join(', ') || 'none' }));
+            else assistantDiv = addMsg('assistant', t('context.whatSeeNone'));
+          } else if (trigger === '/clip') {
+            var at = null;
+            try { at = await window.nexio.contextAttach('clipboard'); } catch (e) {}
+            if (at) { await ctxRefresh(); assistantDiv = addMsg('assistant', t('context.explainClipAttached')); }
+            else {
+              var cst = null;
+              try { cst = await window.nexio.contextStatus(); } catch (e) {}
+              var states = (cst && cst.states) || {};
+              assistantDiv = addMsg('assistant', t('context.clipboardUnavailable', { state: states.clipboard || 'unavailable' }));
+            }
+          } else {
+            var sv = null;
+            try { sv = await window.nexio.contextAttach('selection'); } catch (e) {}
+            if (sv) { await ctxRefresh(); assistantDiv = addMsg('assistant', t('context.explainSel')); }
+            else assistantDiv = addMsg('assistant', t('context.noSelection'));
+          }
+        } catch (e) {
+          assistantDiv = addMsg('assistant', errText(e));
+        }
+        return;
+      }
       if (trigger === '/search') {
         const q = rest.join(' ').trim();
-        if (!q) { addMsg('assistant', 'Usage: /search <query> — searches the web. Configure it first in Settings > Web search.'); showView('run'); return; }
+        if (!q) { addMsg('assistant', t('web.usageSearch')); showView('run'); return; }
         try {
           const r = await window.nexio.webSearch(q);
           const host = addMsg('assistant', '');
-          host.innerHTML = '';
-          const title = document.createElement('div');
-          title.innerHTML = `<strong>Results for &ldquo;${esc(q)}&rdquo;</strong> <span class="muted">${esc(String(r.ms || 0))} ms via ${esc(r.provider || 'web')}</span>`;
-          host.appendChild(title);
-          if (r.reformulated) {
-            const rf = document.createElement('div');
-            rf.className = 'muted';
-            rf.textContent = `No results for the first wording — retried as "${r.reformulated}".`;
-            host.appendChild(rf);
-          }
-          const list = document.createElement('div');
-          list.className = 'web-results';
-          (r.results || []).forEach((it, i) => {
-            const row = document.createElement('div');
-            row.className = 'web-result';
-            const a = document.createElement('a');
-            a.href = '#';
-            a.textContent = `[${i + 1}] ${it.title || it.url}`;
-            a.onclick = (e) => { e.preventDefault(); if (window.nexio.openExternal) window.nexio.openExternal(it.url); };
-            const meta = document.createElement('div');
-            meta.className = 'muted';
-            meta.textContent = it.source || it.url;
-            const sn = document.createElement('div');
-            sn.textContent = it.snippet || '';
-            row.appendChild(a); row.appendChild(meta); row.appendChild(sn);
-            list.appendChild(row);
-          });
-          host.appendChild(list);
+          renderWebResults(host, r, q);
         } catch (e) {
           const host = addMsg('assistant', errText(e));
-          if (/not configured|NOT_CONFIGURED|KEY_UNREADABLE/i.test(errText(e))) {
-            const row = document.createElement('div');
-            row.className = 'web-offrow';
-            row.textContent = 'Web search is off. Set it up in Settings. ';
-            const b = document.createElement('button');
-            b.type = 'button'; b.className = 'btn'; b.textContent = 'Open Settings';
-            b.onclick = () => togglePanel('settings');
-            row.appendChild(b);
-            host.appendChild(row);
-          }
+          if (/CONSENT_REQUIRED/.test(errText(e))) showWebConsent(host, null);
+          else if (/DISABLED|UNAVAILABLE/.test(errText(e))) showWebOff(host);
         }
         showView('run');
         return;
@@ -811,7 +950,7 @@ async function sendInner(submitOpts) {
       if (trigger === '/new') return void newChat();
       if (trigger === '/clear') { messagesEl.innerHTML = ''; assistantDiv = null; currentTurn = null; const st0 = $('agent-steps'); if (st0) st0.innerHTML = ''; const ch0 = $('run-chips'); if (ch0) ch0.remove(); inputEl.value = ''; drafts[mode] = ''; try { if (typeof clearAttachTray === 'function') clearAttachTray(); } catch {} hideSuggest(); showView('idle'); try { maybeSuggest(); } catch {} syncChrome(); requestResize(); return; }
       if (trigger === '/help') {
-        addMsg('assistant', '**Commands:** /help /new /clear /model /history /settings /log /extensions /memory /remember /forget /incognito /spawn /queue /tasks /cancel /clear-queue /pin /search + prompt templates + workflows + skills.\nType `/` to browse.');
+        addMsg('assistant', '**Commands:** /help /new /clear /model /history /settings /log /extensions /memory /remember /forget /incognito /spawn /queue /tasks /cancel /clear-queue /pin /search /context /clip /sel + prompt templates + workflows + skills.\nType `/` to browse.');
         showView('run');
         return;
       }
@@ -1186,16 +1325,18 @@ $('btn-settings').onclick = async () => {
   if ($('set-hideblur')) $('set-hideblur').checked = s.hideOnBlur !== false;
   if ($('set-compact')) $('set-compact').checked = s.compactSpacing === true;
   if ($('set-localtext')) $('set-localtext').checked = s.localTextFallback === true;
-  webProviderSel = s.webProvider || 'off';
-  paintWebProv();
-  if ($('set-webmax')) $('set-webmax').value = s.webMaxResults || 5;
-  if ($('set-webregion')) $('set-webregion').value = s.webRegion || '';
-  if ($('set-weblang')) $('set-weblang').value = s.webLanguage || '';
-  if ($('set-weburl')) $('set-weburl').value = s.webUrl || '';
-  if ($('set-webkey')) $('set-webkey').value = '';
-  if ($('set-webask')) $('set-webask').checked = s.webAllowAsk !== false;
+  if ($('set-ctx')) $('set-ctx').checked = s.contextEnabled !== false;
+  paintCtxAuto(s.contextAutoAttach || 'all');
+  paintCtxSources(s.contextSources || {});
+  if ($('set-ctxcopy')) $('set-ctxcopy').checked = s.contextCopyFallback === true;
+  if ($('set-ctxdeny')) $('set-ctxdeny').value = (s.contextDenyList || []).join('\n');
+  if ($('set-ctxnames')) $('set-ctxnames').checked = s.contextSaveFileNames === true;
+  paintCtxPerm(s);
+  if ($('set-weballow')) $('set-weballow').checked = s.webAllow !== false;
+  if ($('set-webaskbefore')) $('set-webaskbefore').checked = s.webAskBefore === true;
   if ($('set-websave')) $('set-websave').checked = s.webSaveQueries === true;
   if ($('web-status')) { $('web-status').textContent = ''; $('web-status').classList.remove('ok', 'err'); }
+  void paintWebStatus();
   applySpaceScale(s.compactSpacing === true);
   try { paintTaskSettings(s); } catch (e) {}
   void refreshHotkeyStatus();
@@ -1236,12 +1377,15 @@ $('btn-save-settings').onclick = async () => {
   if ($('set-hideblur')) patch.hideOnBlur = $('set-hideblur').checked;
   if ($('set-compact')) { patch.compactSpacing = $('set-compact').checked; applySpaceScale(patch.compactSpacing); }
   if ($('set-localtext')) patch.localTextFallback = $('set-localtext').checked;
-  patch.webProvider = webProviderSel;
-  if ($('set-weburl') && webProviderSel === 'searxng') patch.webUrl = $('set-weburl').value.trim().replace(/\/+$/, '');
-  if ($('set-webmax')) { const wm = parseInt($('set-webmax').value, 10); if (Number.isFinite(wm)) patch.webMaxResults = Math.min(20, Math.max(1, wm)); }
-  if ($('set-webregion')) patch.webRegion = $('set-webregion').value.trim();
-  if ($('set-weblang')) patch.webLanguage = $('set-weblang').value.trim();
-  if ($('set-webask')) patch.webAllowAsk = $('set-webask').checked;
+  if ($('set-ctx')) patch.contextEnabled = $('set-ctx').checked;
+  patch.contextAutoAttach = ctxAutoSel;
+  patch.contextSources = {};
+  document.querySelectorAll('#set-ctx-src input[data-ctxsrc]').forEach((c) => { patch.contextSources[c.dataset.ctxsrc] = c.checked; });
+  if ($('set-ctxcopy')) patch.contextCopyFallback = $('set-ctxcopy').checked;
+  if ($('set-ctxdeny')) patch.contextDenyList = $('set-ctxdeny').value.split('\n').map((x) => x.trim()).filter(Boolean).slice(0, 100);
+  if ($('set-ctxnames')) patch.contextSaveFileNames = $('set-ctxnames').checked;
+  if ($('set-weballow')) patch.webAllow = $('set-weballow').checked;
+  if ($('set-webaskbefore')) patch.webAskBefore = $('set-webaskbefore').checked;
   if ($('set-websave')) patch.webSaveQueries = $('set-websave').checked;
   try { readTaskSettings(patch); } catch (e) {}
   const sug = $('set-suggest').value.split('\n').map((x) => x.trim()).filter(Boolean).slice(0, 8);
@@ -1254,9 +1398,8 @@ $('btn-save-settings').onclick = async () => {
     paintIncognito();
   } catch { /* badge best-effort */ }
   { const k = $('set-apikey').value.trim(); if (k) await window.nexio.setApiKey(patch.provider, k); }
-  { const wk = $('set-webkey') && $('set-webkey').value.trim(); if (wk && webProviderSel === 'brave' && window.nexio.webSetKey) { try { await window.nexio.webSetKey('brave', wk); } catch (e) { $('settings-status').textContent = 'Web key not saved: ' + errText(e); } } }
-  if ($('set-webkey')) $('set-webkey').value = '';
   $('set-apikey').value = '';
+  void paintWebStatus();
   void paintSecretsNotice();
   currentStopHotkey = $('set-stophotkey').value.trim() || 'Ctrl+Alt+Esc';
   void refreshHotkeyStatus();
@@ -1321,19 +1464,14 @@ if ($('btn-test-web')) $('btn-test-web').onclick = async () => {
   status.classList.remove('ok', 'err');
   try {
     await window.nexio.setSettings({
-      webProvider: webProviderSel,
-      webUrl: ($('set-weburl') && $('set-weburl').value.trim().replace(/\/+$/, '')) || '',
-      webMaxResults: Math.min(20, Math.max(1, parseInt(($('set-webmax') && $('set-webmax').value) || '5', 10) || 5)),
-      webRegion: ($('set-webregion') && $('set-webregion').value.trim()) || '',
-      webLanguage: ($('set-weblang') && $('set-weblang').value.trim()) || '',
-      webAllowAsk: $('set-webask') ? $('set-webask').checked : true,
+      webAllow: $('set-weballow') ? $('set-weballow').checked : true,
+      webAskBefore: $('set-webaskbefore') ? $('set-webaskbefore').checked : false,
+      webSaveQueries: $('set-websave') ? $('set-websave').checked : false,
     });
-    const wk = $('set-webkey') && $('set-webkey').value.trim();
-    if (wk && webProviderSel === 'brave' && window.nexio.webSetKey) await window.nexio.webSetKey('brave', wk);
-    if ($('set-webkey')) $('set-webkey').value = '';
     const r = await window.nexio.webTest();
     status.textContent = r.ok ? r.message : r.message;
     status.classList.add(r.ok ? 'ok' : 'err');
+    void paintWebStatus();
   } catch (e) {
     status.textContent = errText(e);
     status.classList.add('err');
@@ -2132,6 +2270,12 @@ function handleAgentEvent(runId, ev) {
       `<span>${esc(ev.summary || '')}</span>` +
       (ev.afterUntrusted ? `<div class="untrusted-note" style="font-size:12px;color:var(--warn)">Requested after reading ${esc(ev.afterUntrusted)}</div>` : '') +
       `</div><span class="dur"></span>`);
+    try {
+      if ((ev.tool === 'web_search' || ev.tool === 'web_fetch') && ev.input && typeof ev.input === 'object') {
+        if (ev.input.query) row.dataset.query = String(ev.input.query);
+        if (ev.input.url) row.dataset.url = String(ev.input.url);
+      }
+    } catch (e) {}
     st.rows.set(ev.id, row);
   } else if (ev.type === 'approval_request') {
     finalizeSpinners();
@@ -2161,14 +2305,17 @@ function handleAgentEvent(runId, ev) {
           const u = m[1];
           if (u && u !== 'web_search' && !seen.has(u)) { seen.add(u); st.webSources.push({ url: u, via: ev.tool }); }
         }
-        // Step row keeps the exact query and gains the result count.
+        // Step row keeps the exact query and gains the backend + result count.
+        // Output shape: "Searched the web via <Name>: <query> (N result(s))".
         try {
           const row0 = st.rows.get(ev.id);
           const tx0 = row0 && row0.querySelector('.tx');
           const sumSpan = tx0 && tx0.querySelectorAll('span')[1];
+          const via = (ev.output.match(/Searched the web via (.+?): /) || [])[1];
           const cnt = (ev.output.match(/\((\d+) result\(s\)\)/) || [])[1];
-          if (row0 && sumSpan && cnt && !/\(\d+ result/.test(sumSpan.textContent || '')) {
-            sumSpan.textContent = `${sumSpan.textContent} (${cnt})`;
+          if (row0 && sumSpan && (via || cnt) && !/result\(s\)\)$/.test(sumSpan.textContent || '')) {
+            const qm = (ev.output.match(/Searched the web via .+?: ([\s\S]*?) \(\d+ result/) || [])[1];
+            sumSpan.textContent = `Searched the web via ${via || 'the web'}: ${qm || ''} (${cnt || '?'})`;
           }
         } catch { /* label best-effort */ }
       }
@@ -2227,31 +2374,68 @@ function handleAgentEvent(runId, ev) {
         const out = String(ev.output || '');
         const code = (out.match(/^([A-Z_]+):/) || [])[1] || '';
         const reason = out.replace(/^[A-Z_]+:\s*/, '');
-        const fail = document.createElement('div');
-        fail.className = 'web-fail';
-        fail.textContent = `Search failed: ${reason || out}`;
-        tx.appendChild(fail);
-        const acts = document.createElement('div');
-        acts.className = 'web-fail-actions';
-        if (code === 'NOT_CONFIGURED' || code === 'KEY_UNREADABLE') {
-          const b = document.createElement('button');
-          b.type = 'button'; b.className = 'btn'; b.textContent = 'Open Settings';
-          b.onclick = () => togglePanel('settings');
-          acts.appendChild(b);
-        } else if (code === 'RATE_LIMITED' || code === 'TIMEOUT' || code === 'NETWORK' || code === 'PROVIDER_ERROR') {
-          const b = document.createElement('button');
-          b.type = 'button'; b.className = 'btn'; b.textContent = 'Retry';
-          b.onclick = () => { if (lastUserText && typeof inputEl !== 'undefined' && inputEl) { inputEl.value = lastUserText; try { grow(); } catch {} send({}); } };
-          acts.appendChild(b);
+        if (code === 'CONSENT_REQUIRED') {
+          showWebConsent(tx, function () {
+            if (lastUserText && typeof inputEl !== 'undefined' && inputEl) { inputEl.value = lastUserText; try { grow(); } catch {} send({}); }
+          });
+        } else if (code === 'NEEDS_CONFIRM') {
+          const q = (row && (row.dataset.query || row.dataset.url)) || lastUserText || '';
+          const box = document.createElement('div');
+          box.className = 'web-offrow';
+          const sp = document.createElement('span');
+          sp.textContent = t('web.needsConfirm', { query: String(q).slice(0, 120) });
+          box.appendChild(sp);
+          const go = document.createElement('button');
+          go.type = 'button'; go.className = 'btn'; go.textContent = t('web.searchOnce');
+          go.onclick = async function () {
+            go.disabled = true;
+            try {
+              const r = await window.nexio.webSearch(String(q));
+              const host = addMsg('assistant', '');
+              renderWebResults(host, r, String(q));
+              showView('run');
+            } catch (e) {
+              const host2 = addMsg('assistant', errText(e));
+              if (/CONSENT_REQUIRED/.test(errText(e))) showWebConsent(host2, null);
+              showView('run');
+            }
+          };
+          const no = document.createElement('button');
+          no.type = 'button'; no.className = 'switch-do-chip'; no.textContent = t('common.dismiss');
+          no.onclick = function () { box.remove(); try { requestResize(); } catch (e) {} };
+          box.appendChild(go); box.appendChild(no);
+          tx.appendChild(box);
+        } else {
+          const fail = document.createElement('div');
+          fail.className = 'web-fail';
+          fail.textContent = `Search failed: ${reason || out}`;
+          tx.appendChild(fail);
+          const acts = document.createElement('div');
+          acts.className = 'web-fail-actions';
+          if (code === 'DISABLED' || code === 'UNAVAILABLE') {
+            const note = document.createElement('span');
+            note.className = 'muted';
+            note.textContent = t(code === 'DISABLED' ? 'web.offMsg' : 'web.unavailableMsg');
+            acts.appendChild(note);
+            const b = document.createElement('button');
+            b.type = 'button'; b.className = 'btn'; b.textContent = t('web.openSettings');
+            b.onclick = () => togglePanel('settings');
+            acts.appendChild(b);
+          } else if (code === 'RATE_LIMITED' || code === 'TIMEOUT' || code === 'NETWORK' || code === 'PROVIDER_ERROR') {
+            const b = document.createElement('button');
+            b.type = 'button'; b.className = 'btn'; b.textContent = 'Retry';
+            b.onclick = () => { if (lastUserText && typeof inputEl !== 'undefined' && inputEl) { inputEl.value = lastUserText; try { grow(); } catch {} send({}); } };
+            acts.appendChild(b);
+          }
+          if (acts.children.length) tx.appendChild(acts);
         }
-        if (acts.children.length) tx.appendChild(acts);
       }
-      if (!ev.ok && ev.tool === 'web_search' && /NOT_CONFIGURED/.test(String(ev.output || '')) && st.answerDiv && st.answerDiv.parentNode && !st.answerDiv.parentNode.querySelector('.web-offrow')) {
+      if (!ev.ok && ev.tool === 'web_search' && /(DISABLED|UNAVAILABLE)/.test(String(ev.output || '')) && st.answerDiv && st.answerDiv.parentNode && !st.answerDiv.parentNode.querySelector('.web-offrow')) {
         const off = document.createElement('div');
         off.className = 'web-offrow';
-        off.textContent = 'Web search is off. Set it up in Settings. ';
+        off.textContent = t('web.offMsg') + ' ';
         const b = document.createElement('button');
-        b.type = 'button'; b.className = 'btn'; b.textContent = 'Open Settings';
+        b.type = 'button'; b.className = 'btn'; b.textContent = t('web.openSettings');
         b.onclick = () => togglePanel('settings');
         off.appendChild(b);
         st.answerDiv.after(off);
@@ -2335,14 +2519,7 @@ function handleAgentEvent(runId, ev) {
     } catch { /* sources row never breaks done */ }
     try {
       if (st.answerDiv && /Settings > Web search/.test(st.answerDiv.dataset.raw || '') && st.answerDiv.parentNode && !st.answerDiv.parentNode.querySelector('.web-offrow')) {
-        const off = document.createElement('div');
-        off.className = 'web-offrow';
-        off.textContent = 'Web search is off. Set it up in Settings. ';
-        const b = document.createElement('button');
-        b.type = 'button'; b.className = 'btn'; b.textContent = 'Open Settings';
-        b.onclick = () => togglePanel('settings');
-        off.appendChild(b);
-        st.answerDiv.after(off);
+        showWebOff(st.answerDiv.parentNode, st.answerDiv);
       }
     } catch { /* inline action never breaks done */ }
     renderRunChips(runId);
@@ -2888,6 +3065,11 @@ if (window.nexio && typeof window.nexio.onRunSummary === 'function') {
 if (window.nexio && typeof window.nexio.onPopupShown === 'function') {
   // Every hotkey opening defaults to Do unless the user picked a mode this session.
   window.nexio.onPopupShown(() => {
+    try {
+      ctxViews = []; ctxSnapId = null; ctxPreviewFor = null;
+      hideCtxChoice();
+      renderCtxTray();
+    } catch (e) {}
     try {
       if (!modeExplicitSession && mode !== 'agent') setMode('agent', false);
       // Content rendered while hidden never resized the window (main ignores
@@ -3687,6 +3869,14 @@ function hideSuggest() {
 async function suggestList() {
   if (suggestCache) return suggestCache;
   try {
+    var examples = [];
+    var sel = typeof ctxViewBySource === 'function' ? ctxViewBySource('selection') : null;
+    var fil = typeof ctxViewBySource === 'function' ? ctxViewBySource('files') : null;
+    if (sel && sel.state === 'available') examples.push(t('context.suggestSummarize'));
+    if (fil && fil.state === 'available') examples.push(t('context.suggestMove'));
+    if (examples.length) { suggestCache = examples; return suggestCache; }
+  } catch (e) {}
+  try {
     const s = await window.nexio.getSettings();
     if (Array.isArray(s.suggestions) && s.suggestions.length) {
       suggestCache = s.suggestions.filter((x) => typeof x === 'string' && x.trim()).slice(0, 8);
@@ -3881,6 +4071,36 @@ function setObTestState(state) {
     out.appendChild(lock);
   }
 }
+/* --- Web search consent inside first-run onboarding (one line, two buttons) --- */
+async function paintObWebConsent() {
+  const box = $('ob-webconsent');
+  if (!box || !window.nexio.webStatus) return;
+  var st = null;
+  try { st = await window.nexio.webStatus(); } catch (e) { return; }
+  if (!st || st.state === 'unavailable' || st.consented) { box.classList.add('hidden'); box.innerHTML = ''; return; }
+  box.classList.remove('hidden');
+  box.innerHTML = '';
+  const sp = document.createElement('span');
+  sp.textContent = t('web.consentLine', { backend: st.name || 'web search' });
+  box.appendChild(sp);
+  if (st.privacyUrl) {
+    const a = document.createElement('a');
+    a.href = '#';
+    a.textContent = t('web.privacyPolicy');
+    a.onclick = (e) => { e.preventDefault(); if (window.nexio.openExternal) window.nexio.openExternal(st.privacyUrl); };
+    box.appendChild(a);
+  }
+  const allow = document.createElement('button');
+  allow.type = 'button'; allow.className = 'btn'; allow.textContent = t('web.allow');
+  allow.onclick = async () => {
+    try { if (st.backend) await window.nexio.webConsent(st.backend, true); } catch (e) {}
+    box.classList.add('hidden'); box.innerHTML = '';
+  };
+  const not = document.createElement('button');
+  not.type = 'button'; not.className = 'switch-do-chip'; not.textContent = t('web.notNow');
+  not.onclick = () => { box.classList.add('hidden'); box.innerHTML = ''; };
+  box.appendChild(allow); box.appendChild(not);
+}
 function renderOnboard() {
   const box = $('onboard');
   if (!box) return;
@@ -3943,6 +4163,7 @@ function renderOnboard() {
       });
     }
     paintProv();
+    void paintObWebConsent();
     $('ob-test').onclick = async () => {
       const btn = $('ob-test');
       if (btn.disabled) return;
@@ -6198,3 +6419,365 @@ if (window.nexio && typeof window.nexio.onTasksChanged === 'function') {
   window.nexio.onTasksChanged(function () { void refreshTasks(); });
 }
 void refreshTasks();
+
+/* --- Context awareness (appended): tray chips, preview, choice, notice, slashes --- */
+var ctxViews = [];
+var ctxSnapId = null;
+var ctxAppName = '';
+var ctxPreviewFor = null;
+var ctxChoiceText = null;
+var ctxNoticeShown = false;
+var CTX_ORDER = ['selection', 'files', 'folder', 'page', 'clipboard'];
+var CTX_ICONS = {
+  selection: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 10h16M4 14h10M4 18h7"/></svg>',
+  files: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>',
+  folder: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M3 13h18"/></svg>',
+  page: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.5 2.3 3.8 5.2 3.8 8.5s-1.3 6.2-3.8 8.5c-2.5-2.3-3.8-5.2-3.8-8.5S9.5 5.8 12 3.5z"/></svg>',
+  clipboard: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4a3 3 0 0 1 6 0"/></svg>'
+};
+function ctxSay(m) { try { var el = document.getElementById('attach-live'); if (el) el.textContent = m; } catch (e) {} }
+function ctxDescribeState(state) {
+  if (state === 'available') return t('context.stateAvailable');
+  if (state === 'denied') return t('context.stateDenied');
+  if (state.indexOf('unavailable:') === 0) {
+    var r = state.slice('unavailable:'.length);
+    if (r === 'no_permission') return t('context.stateNoPermission');
+    if (r === 'elevated_window') return t('context.stateElevated');
+    if (r === 'password_field') return t('context.statePassword');
+    return t('context.stateUnavailable', { reason: r.replace(/_/g, ' ') });
+  }
+  if (state.indexOf('skipped:') === 0) {
+    var k = state.slice('skipped:'.length);
+    if (k === 'empty') return t('context.stateEmpty');
+    if (k === 'concealed') return t('context.stateConcealed');
+    if (k === 'private_window') return t('context.statePrivate');
+    if (k === 'disabled') return t('context.stateDisabled');
+    if (k === 'too_large') return t('context.stateTooLarge');
+    return t('context.stateSkipped', { reason: k.replace(/_/g, ' ') });
+  }
+  return state;
+}
+function ctxViewBySource(src) {
+  for (var i = 0; i < ctxViews.length; i++) if (ctxViews[i].source === src) return ctxViews[i];
+  return null;
+}
+function ctxAttachedViews() {
+  return ctxViews.filter(function (v) { return v.attached && v.state === 'available'; });
+}
+function ctxChipClass(v) {
+  if (v.attached && v.state === 'available') return 'attached';
+  if (v.state === 'available') return 'available';
+  return 'unavailable';
+}
+function renderCtxTray() {
+  var tray = document.getElementById('attach-tray');
+  if (!tray) return;
+  // why: the context tray owns its own block; the attachment tray keeps working beside it
+  var old = document.getElementById('ctx-tray');
+  if (old) old.remove();
+  var host = document.createElement('div');
+  host.id = 'ctx-tray';
+  host.className = ctxViews.length ? '' : 'hidden';
+  if (!ctxViews.length) { tray.appendChild(host); try { requestResize(); } catch (e) {} return; }
+  var labelRow = document.createElement('div');
+  labelRow.className = 'ctx-labelrow';
+  var lab = document.createElement('span');
+  lab.className = 'ctx-labelname';
+  lab.textContent = t('context.label');
+  labelRow.appendChild(lab);
+  var detach = document.createElement('button');
+  detach.type = 'button';
+  detach.className = 'switch-do-chip';
+  detach.textContent = t('context.detachAll');
+  detach.onclick = function () {
+    var vs = ctxAttachedViews();
+    var chain = Promise.resolve();
+    vs.forEach(function (v) {
+      chain = chain.then(function () { try { return window.nexio.contextDetach(v.source); } catch (e) { return null; } });
+    });
+    void chain.then(function () { void ctxRefresh(); });
+    ctxSay(t('context.detachAll'));
+  };
+  labelRow.appendChild(detach);
+  host.appendChild(labelRow);
+  var ordered = ctxViews.slice().sort(function (a, b) { return CTX_ORDER.indexOf(a.source) - CTX_ORDER.indexOf(b.source); });
+  ordered.forEach(function (v) {
+    var chip = document.createElement('div');
+    chip.className = 'ctx-chip ' + ctxChipClass(v);
+    chip.title = v.detail || ctxDescribeState(v.state);
+    var ic = document.createElement('span');
+    ic.className = 'ctx-ic';
+    ic.innerHTML = CTX_ICONS[v.source] || '';
+    chip.appendChild(ic);
+    var tx = document.createElement('span');
+    tx.className = 'ctx-tx';
+    tx.textContent = v.label;
+    chip.appendChild(tx);
+    if (v.attached && v.state === 'available') {
+      var check = document.createElement('span');
+      check.className = 'ctx-check';
+      check.setAttribute('aria-hidden', 'true');
+      check.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><polyline points="4 12.5 10 18.5 20 6"/></svg>';
+      chip.appendChild(check);
+      var x = document.createElement('button');
+      x.type = 'button';
+      x.className = 'ctx-x';
+      x.setAttribute('aria-label', 'Detach ' + v.source);
+      x.textContent = '×';
+      x.onclick = function (e) {
+        e.stopPropagation();
+        try { void window.nexio.contextDetach(v.source).then(function () { void ctxRefresh(); }); } catch (err) {}
+        ctxSay(t('context.announceDetached', { label: v.label }));
+      };
+      chip.appendChild(x);
+      chip.onclick = function () { ctxTogglePreview(v.source); };
+      chip.setAttribute('role', 'button');
+      chip.tabIndex = 0;
+    } else if (v.state === 'available') {
+      chip.onclick = function () {
+        try {
+          void window.nexio.contextAttach(v.source).then(function () { void ctxRefresh(); });
+        } catch (err) {}
+        ctxSay(t('context.announceAttached', { label: v.label }));
+      };
+      chip.setAttribute('role', 'button');
+      chip.tabIndex = 0;
+    } else {
+      if (v.state === 'unavailable:no_permission') {
+        var go = document.createElement('button');
+        go.type = 'button';
+        go.className = 'switch-do-chip';
+        go.textContent = 'Open System Settings';
+        go.onclick = function (e) {
+          e.stopPropagation();
+          try { void window.nexio.openSystemSettings(v.source === 'files' ? 'automation' : 'accessibility'); } catch (err) {}
+        };
+        chip.appendChild(go);
+      }
+    }
+    host.appendChild(chip);
+  });
+  // provider notice: whatever will be sent is visible before sending
+  try {
+    var n = document.createElement('div');
+    n.className = 'ctx-notice-line muted';
+    n.textContent = t('context.sentNote');
+    host.appendChild(n);
+  } catch (e) {}
+  tray.appendChild(host);
+  renderCtxPreview(host);
+  try { requestResize(); } catch (e) {}
+  // context examples feed the empty-state suggestions
+  try { suggestCache = null; if (!inputEl.value) maybeSuggest(); } catch (e) {}
+}
+function renderCtxPreview(host) {
+  var old = document.getElementById('ctx-preview');
+  if (old) old.remove();
+  if (!ctxPreviewFor) return;
+  var v = ctxViewBySource(ctxPreviewFor);
+  if (!v || !v.preview) { ctxPreviewFor = null; return; }
+  var box = document.createElement('div');
+  box.id = 'ctx-preview';
+  box.className = 'ctx-preview';
+  var head = document.createElement('div');
+  head.className = 'ctx-preview-head';
+  var t = document.createElement('span');
+  t.textContent = v.label;
+  head.appendChild(t);
+  var close = document.createElement('button');
+  close.type = 'button';
+  close.className = 'switch-do-chip';
+  close.textContent = t('common.close');
+  close.onclick = function () { ctxPreviewFor = null; renderCtxTray(); try { inputEl.focus(); } catch (e) {} };
+  head.appendChild(close);
+  box.appendChild(head);
+  if (v.source === 'files') {
+    var lines = String(v.preview).split('\n');
+    var list = document.createElement('div');
+    list.className = 'ctx-filelist';
+    lines.forEach(function (line) {
+      var m = /^(.*) \| (.*?)(\s*\[.*\])?$/.exec(line);
+      if (!m) return;
+      var row = document.createElement('label');
+      row.className = 'ctx-filerow';
+      var cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = true;
+      var id = m[2];
+      cb.onchange = function () {
+        try { void window.nexio.contextExclude(id, !cb.checked); } catch (e) {}
+      };
+      var nm = document.createElement('span');
+      nm.className = 'ctx-filename';
+      nm.textContent = m[1];
+      row.appendChild(cb);
+      row.appendChild(nm);
+      list.appendChild(row);
+    });
+    box.appendChild(list);
+  } else {
+    var pre = document.createElement('pre');
+    pre.className = 'ctx-mono';
+    pre.textContent = v.preview;
+    box.appendChild(pre);
+  }
+  host.appendChild(box);
+}
+function ctxTogglePreview(src) {
+  ctxPreviewFor = ctxPreviewFor === src ? null : src;
+  renderCtxTray();
+  ctxSay(v && ctxPreviewFor ? v.label : '');
+}
+async function ctxRefresh() {
+  try {
+    var view = await window.nexio.contextRefresh();
+    if (!view) { ctxViews = []; ctxSnapId = null; renderCtxTray(); return; }
+    if (view.id !== ctxSnapId) { ctxPreviewFor = null; ctxChoiceText = null; hideCtxChoice(); }
+    ctxSnapId = view.id;
+    ctxAppName = (view.app && view.app.name) || '';
+    ctxViews = view.views || [];
+    renderCtxTray();
+    void ctxMaybeNotice();
+  } catch (e) { /* tray best-effort */ }
+}
+async function ctxMaybeNotice() {
+  if (ctxNoticeShown || !ctxViews.length) return;
+  var s = null;
+  try { s = await window.nexio.getSettings(); } catch (e) { return; }
+  if (!s || s.contextNoticeDismissed || s.contextEnabled === false) return;
+  ctxNoticeShown = true;
+  var tray = document.getElementById('attach-tray');
+  var host = document.getElementById('ctx-tray');
+  if (!tray || !host) return;
+  var n = document.createElement('div');
+  n.className = 'ctx-firstnote';
+  n.setAttribute('role', 'note');
+  var p = document.createElement('span');
+  p.textContent = t('context.firstNotice');
+  n.appendChild(p);
+  var row = document.createElement('div');
+  row.className = 'ctx-firstnote-row';
+  var ok = document.createElement('button');
+  ok.type = 'button'; ok.className = 'btn-primary'; ok.textContent = t('context.continue');
+  ok.onclick = function () {
+    try { void window.nexio.setSettings({ contextNoticeDismissed: true }); } catch (e) {}
+    n.remove();
+    try { requestResize(); } catch (e) {}
+  };
+  var off = document.createElement('button');
+  off.type = 'button'; off.className = 'btn'; off.textContent = t('context.turnOff');
+  off.onclick = function () {
+    try { void window.nexio.setSettings({ contextEnabled: false, contextNoticeDismissed: true }); } catch (e) {}
+    ctxViews = [];
+    renderCtxTray();
+    n.remove();
+    try { requestResize(); } catch (e) {}
+  };
+  row.appendChild(ok); row.appendChild(off);
+  n.appendChild(row);
+  host.insertBefore(n, host.firstChild);
+  ctxSay(t('context.firstNotice'));
+  try { requestResize(); } catch (e) {}
+}
+function hideCtxChoice() {
+  try {
+    var box = document.getElementById('ctx-choice');
+    if (box) { box.innerHTML = ''; box.classList.add('hidden'); }
+  } catch (e) {}
+  try { requestResize(); } catch (e) {}
+}
+function showCtxChoice(options, originalText) {
+  var box = document.getElementById('ctx-choice');
+  if (!box) return;
+  box.innerHTML = '';
+  box.classList.remove('hidden');
+  ctxChoiceText = originalText;
+  var lab = document.createElement('span');
+  lab.className = 'ctx-choice-label';
+  lab.textContent = t('context.use');
+  box.appendChild(lab);
+  options.forEach(function (opt) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn';
+    b.textContent = t('context.opt' + ({ selection: 'Selected', files: 'Files', folder: 'Folder', page: 'Page', clipboard: 'Clipboard' }[opt] || opt));
+    b.onclick = function () {
+      var t = ctxChoiceText || '';
+      hideCtxChoice();
+      try {
+        void window.nexio.contextAttach(opt).then(function () {
+          inputEl.value = t;
+          drafts[mode] = t;
+          try { grow(); } catch (e) {}
+          inputEl.focus();
+          void send({});
+        });
+      } catch (e) {}
+    };
+    box.appendChild(b);
+  });
+  var no = document.createElement('button');
+  no.type = 'button';
+  no.className = 'switch-do-chip';
+  no.textContent = t('common.dismiss');
+  no.onclick = function () { hideCtxChoice(); };
+  box.appendChild(no);
+  ctxSay(t('context.use'));
+  try { requestResize(); } catch (e) {}
+}
+function showCtxActions(actions) {
+  var box = document.getElementById('ctx-choice');
+  if (!box) return;
+  box.innerHTML = '';
+  box.classList.remove('hidden');
+  (actions || []).forEach(function (a) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn';
+    if (a === 'attach') {
+      b.textContent = t('context.attachFile');
+      b.onclick = function () { hideCtxChoice(); try { document.getElementById('btn-attach').click(); } catch (e) {} };
+    } else if (a === 'clipboard') {
+      b.textContent = t('context.useClipboard');
+      b.onclick = function () {
+        hideCtxChoice();
+        try {
+          void window.nexio.contextAttach('clipboard').then(function () { void ctxRefresh(); inputEl.focus(); });
+        } catch (e) {}
+      };
+    } else {
+      return;
+    }
+    box.appendChild(b);
+  });
+  try { requestResize(); } catch (e) {}
+}
+if (window.nexio && typeof window.nexio.onContextEvent === 'function') {
+  window.nexio.onContextEvent(function (ev) {
+    try {
+      if (!ev) return;
+      if (ev.kind === 'snapshot' && ev.snapshot) {
+        if (ev.snapshot.id !== ctxSnapId) { ctxPreviewFor = null; hideCtxChoice(); }
+        ctxSnapId = ev.snapshot.id;
+        ctxAppName = (ev.snapshot.app && ev.snapshot.app.name) || '';
+        ctxViews = ev.snapshot.views || [];
+        renderCtxTray();
+        void ctxMaybeNotice();
+      } else if (ev.kind === 'source') {
+        void ctxRefresh();
+      } else if (ev.kind === 'choice') {
+        showCtxChoice(ev.options || [], (typeof lastUserText === 'string' && lastUserText) || '');
+      } else if (ev.kind === 'actions') {
+        showCtxActions(ev.actions || []);
+      }
+    } catch (e) { /* tray best-effort */ }
+  });
+}
+// Esc closes an open preview before anything else (capture runs first).
+document.addEventListener('keydown', function (e) {
+  if (e.key !== 'Escape' || !ctxPreviewFor) return;
+  e.stopPropagation();
+  ctxPreviewFor = null;
+  renderCtxTray();
+  try { inputEl.focus(); } catch (err) {}
+}, true);

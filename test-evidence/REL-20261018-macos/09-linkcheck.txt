@@ -1,0 +1,8 @@
+BROKEN: README.md -> docs/media/demo.gif
+BROKEN: README.md -> docs/media/popup.png
+BROKEN: README.md -> docs/media/slash-palette.png
+BROKEN: README.md -> docs/media/approval-card.png
+BROKEN: README.md -> docs/media/run-log-undo.png
+BROKEN: README.md -> docs/media/parallel-tasks.png
+BROKEN: README.md -> docs/media/memory.png
+md files: 44 broken links: 7

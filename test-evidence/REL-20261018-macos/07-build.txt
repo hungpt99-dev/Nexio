@@ -1,0 +1,16 @@
+
+> nexio@0.1.0 build
+> npm run build:main && npm run build:renderer
+
+
+> nexio@0.1.0 build:main
+> tsc -p tsconfig.main.json
+
+
+> nexio@0.1.0 build:renderer
+> node scripts/copy-renderer.js
+
+renderer copied to /Users/phamthanhhung/Desktop/MyProject/Nexio/dist/renderer
+assets copied to /Users/phamthanhhung/Desktop/MyProject/Nexio/dist/assets
+i18n copied: i18n/locales
+i18n copied: i18n/intents

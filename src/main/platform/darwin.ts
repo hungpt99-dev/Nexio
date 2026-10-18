@@ -224,4 +224,37 @@ export const darwinAdapter: PlatformAdapter = {
       return path.join(path.dirname(dbFile), 'logs');
     }
   },
+  /** Context capture: best-effort OS queries, typed skips, never throws. */
+  async getActiveWindow(signal: AbortSignal) {
+    const { macActiveWindow } = await import('./context-darwin');
+    try {
+      return await macActiveWindow(signal, process.pid);
+    } catch {
+      return null;
+    }
+  },
+  async readSelection(win, signal) {
+    const { macReadSelection } = await import('./context-darwin');
+    try {
+      return await macReadSelection(win.pid, signal);
+    } catch {
+      return { ok: false, skip: 'unsupported_app' as const };
+    }
+  },
+  async readSelectedFiles(signal) {
+    const { macReadSelectedFiles } = await import('./context-darwin');
+    try {
+      return await macReadSelectedFiles(signal);
+    } catch {
+      return { ok: false, skip: 'unsupported_app' as const };
+    }
+  },
+  async readBrowserPage(win, signal) {
+    const { macReadBrowserPage } = await import('./context-darwin');
+    try {
+      return await macReadBrowserPage(win, signal);
+    } catch {
+      return { ok: false, skip: 'unsupported_app' as const };
+    }
+  },
 };

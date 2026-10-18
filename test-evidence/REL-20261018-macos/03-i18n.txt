@@ -1,0 +1,7 @@
+
+> nexio@0.1.0 i18n:check
+> node scripts/i18n-check.mjs
+
+[i18n:check] warn: vi.json: untranslated key "app.name"
+[i18n:check] warn: vi.json: untranslated key "tasks.agentTag"
+[i18n:check] OK

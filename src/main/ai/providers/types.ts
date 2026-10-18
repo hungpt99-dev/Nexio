@@ -71,6 +71,8 @@ export interface ProviderCapabilities {
   maxSide: number;
   /** Accepted image MIME types. */
   supportedTypes: string[];
+  /** Model-native web search API (Anthropic web_search tool, Gemini google_search). Default false when absent. */
+  supportsNativeSearch?: boolean;
 }
 
 export interface BuiltRequest {

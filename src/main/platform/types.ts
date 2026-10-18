@@ -34,6 +34,34 @@ export interface AppInfo {
   name: string;
 }
 
+export interface ActiveWindow {
+  pid: number;
+  /** Win32 exe name (lowercase) or macOS bundle id. */
+  id: string;
+  name: string;
+  windowTitle: string;
+  isBrowser: boolean;
+}
+
+export type SelectionRead =
+  | { ok: true; text: string }
+  | { ok: false; skip: 'password_field' | 'elevated_window' | 'unsupported_app' | 'no_permission' | 'timeout' | 'empty' };
+
+export interface SelectedFileItem {
+  path: string;
+  isDir: boolean;
+  size?: number;
+  mtime?: number;
+}
+
+export type SelectedFilesRead =
+  | { ok: true; files: SelectedFileItem[]; total: number; folder?: string }
+  | { ok: false; skip: 'no_permission' | 'timeout' | 'empty' | 'unsupported_app' };
+
+export type BrowserPageRead =
+  | { ok: true; url: string; title: string; text?: string; isPrivate?: boolean }
+  | { ok: false; skip: 'no_permission' | 'timeout' | 'empty' | 'unsupported_app' | 'private_window' | 'elevated_window' };
+
 export interface RunShellOpts {
   cwd: string;
   env?: NodeJS.ProcessEnv;
@@ -66,6 +94,15 @@ export interface PlatformAdapter {
 
   /** Running apps/windows, read-only, no special permission. */
   listApps(signal: AbortSignal): Promise<AppInfo[]>;
+
+  /** Foreground window at call time. Fast, no permission prompt, null when unknown. */
+  getActiveWindow(signal: AbortSignal): Promise<ActiveWindow | null>;
+  /** Selected text in the given window. Skip reasons: password_field, deny handled by caller, elevated_window, unsupported_app, no_permission, timeout, empty. */
+  readSelection(win: ActiveWindow, signal: AbortSignal): Promise<SelectionRead>;
+  /** Selected files in Explorer/Finder/Desktop + the open folder. */
+  readSelectedFiles(signal: AbortSignal): Promise<SelectedFilesRead>;
+  /** Browser URL/title (+text when accessibility exposes it) for the given window. */
+  readBrowserPage(win: ActiveWindow, signal: AbortSignal): Promise<BrowserPageRead>;
   /** Open a path/URL with the OS default handler. */
   openTarget(target: string): Promise<void>;
   /** Move to Recycle Bin / Trash. Never permanent delete. */

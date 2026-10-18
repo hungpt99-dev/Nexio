@@ -56,3 +56,35 @@ export function parseLoginEnv(text: string): NodeJS.ProcessEnv {
   }
   return out;
 }
+
+/** Run a helper process, parse stdout as JSON. Timeout + abort kill it. Never throws secrets. */
+export function collectJson(
+  bin: string,
+  args: string[],
+  timeoutMs: number,
+  signal: AbortSignal,
+  opts?: { windowsHide?: boolean },
+): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(bin, args, { timeout: timeoutMs, windowsHide: opts?.windowsHide !== false, stdio: ['ignore', 'pipe', 'pipe'] });
+    let out = '';
+    let err = '';
+    const done = (e: Error | null) => {
+      if (signal.aborted) return reject(new Error('Aborted'));
+      if (e) return reject(new Error(`helper failed: ${String(err || e.message || e).slice(0, 200)}`));
+      try {
+        resolve(JSON.parse(String(out || 'null')));
+      } catch {
+        reject(new Error(`helper returned non-JSON: ${String(out).slice(0, 200)}`));
+      }
+    };
+    child.stdout?.on('data', (d: Buffer) => { out += d.toString('utf8'); if (out.length > 2_000_000) { try { child.kill(); } catch { /* noop */ } } });
+    child.stderr?.on('data', (d: Buffer) => { err += d.toString('utf8').slice(0, 500); });
+    child.on('error', (e) => done(e));
+    child.on('close', (code) => {
+      if (code !== 0 && !out.trim()) return done(new Error(`exit ${code}`));
+      done(null);
+    });
+    signal.addEventListener('abort', () => { try { child.kill(); } catch { /* noop */ } }, { once: true });
+  });
+}

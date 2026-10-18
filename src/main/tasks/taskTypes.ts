@@ -25,6 +25,24 @@ export interface TaskSnapshot {
   model: string;
   memorySnapshotIds: string[];
   attachmentIds: string[];
+  /** Frozen context copy at creation (attached sources only, capped). Never refreshed. */
+  contextSnapshot?: TaskContextCopy | null;
+}
+
+/** In-memory + persisted task copy of attached context (contents, capped). */
+export interface TaskContextCopy {
+  attached: string[];
+  appName: string;
+  selectionText?: string;
+  selectionTruncated?: boolean;
+  files?: Array<{ displayName: string; absolutePath: string; kind: string; outsideRoots?: boolean }>;
+  folder?: { absolutePath: string; displayName: string };
+  clipboardKind?: string;
+  clipboardPreview?: string;
+  clipboardText?: string;
+  pageUrl?: string;
+  pageTitle?: string;
+  pageText?: string;
 }
 
 export interface Task {

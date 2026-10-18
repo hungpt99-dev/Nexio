@@ -8,6 +8,7 @@ import { appsListTool } from './apps_list';
 import { clipboardReadTool } from './clipboard_read';
 import { webSearchTool } from './web_search';
 import { webFetchTool } from './web_fetch';
+import { contextGetTool, contextStatusTool } from './context';
 import { appOpenTool } from './app_open';
 import { clipboardWriteTool } from './clipboard_write';
 import { fsWriteTool } from './fs_write';
@@ -25,6 +26,8 @@ export const ALL_TOOLS: Tool[] = [
   clipboardReadTool,
   webSearchTool,
   webFetchTool,
+  contextGetTool,
+  contextStatusTool,
   appOpenTool,
   clipboardWriteTool,
   fsWriteTool,

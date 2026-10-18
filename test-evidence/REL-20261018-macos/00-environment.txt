@@ -1,0 +1,27 @@
+RELEASE TEST RECORD — Nexio
+ID: REL-20261018-macos
+Date (UTC): 2026-10-18
+Tester: AI agent (OpenCode), test-only task, no code fixes made during testing.
+
+HOST (macOS):
+  ProductName: macOS 26.6.2, Build 25G83
+  CPU: Apple M4, RAM: 16 GB
+  Display: 2560x1664 Retina, Main Display: Yes (single monitor)
+  User: phamthanhhung (ADMIN — deviation: PART 0 asks for standard non-admin user)
+  Machine type: developer's real Mac (NOT a VM, NOT a fresh user — personal data present)
+  Consequence: NO destructive tests outside ~/NexioTest sandbox; no Folder-traversal outside sandbox;
+  Windows column: BLOCKED (no Windows host/VM available); Intel Mac: N/A (Apple Silicon only).
+  Network: online (needed for keyless DDG check + docs verification).
+
+APP UNDER TEST:
+  Repo: /Users/phamthanhhung/Desktop/MyProject/Nexio
+  Commit: 8f77ff6 "fix: real configurable web search with honest states"
+  Working tree: DIRTY (uncommitted: context-awareness + zero-config web search work + this report's evidence)
+  Install method: dev (npx electron . from repo, tsconfig build + copy-renderer)
+  Node: v24.13.0 (repo engines: >=20), Electron 37.10.3 per package.json
+  Display server: native macOS GUI session (no headless tricks; hotkey automation via Quartz Criterion).
+
+KEYS:
+  Live provider keys: BLOCKED — no throwaway keys supplied. Ambient OPENAI_API_KEY in shell env
+  NOT used (real credential, would violate PART 0). All provider tests use repo fake servers/mocks.
+  Local Ollama: checked below.

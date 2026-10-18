@@ -13,7 +13,10 @@ const DEFAULT: ProviderCapabilities = {
 // Anthropic rejects temperature+top_p together on some models —
 // capabilities stay conservative; buildRequest drops top_p when both are set.
 const TABLE: Array<{ match: RegExp; caps: Partial<ProviderCapabilities> }> = [
-  { match: /claude-opus-4|claude-sonnet-4|claude-3-7/i, caps: { reasoningAware: true } },
+  // Model-native web search (server tool web_search_20250305, allowed_callers direct).
+  // Verified 2026-10-18: https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-search-tool
+  { match: /claude-opus-4|claude-sonnet-4|claude-3-7/i, caps: { reasoningAware: true, supportsNativeSearch: true } },
+  { match: /claude-(opus|sonnet|haiku)-[345]|claude-3-[357]/i, caps: { supportsNativeSearch: true } },
 ];
 
 export function capabilitiesFor(model: string): ProviderCapabilities {

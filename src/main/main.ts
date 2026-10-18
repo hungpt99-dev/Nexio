@@ -140,6 +140,10 @@ app.on('before-quit', (e) => {
 app.on('will-quit', () => {
   globalShortcut.unregisterAll();
   resetDialogLock();
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    require('./context/store').clear();
+  } catch { /* noop */ }
   void shutdownExtensions().finally(() => closeDb());
 });
 app.on('window-all-closed', () => { /* stay in tray */ });

@@ -24,6 +24,9 @@ const BUILTINS: SlashEntry[] = [
   { trigger: '/tasks', label: 'Tasks', description: 'Open the Tasks view', source: 'builtin', action: 'tasks', scope: 'all' },
   { trigger: '/pin', label: 'Pin', description: 'Keep the window open (Alt+P)', source: 'builtin', action: 'pin', scope: 'all' },
   { trigger: '/search', label: 'Search web', description: 'Search the web (usage: /search <query>)', source: 'builtin', action: 'search', scope: 'all' },
+  { trigger: '/context', label: 'Context', description: 'Show what Nexio can see right now', source: 'builtin', action: 'context', scope: 'all' },
+  { trigger: '/clip', label: 'Clipboard', description: 'Attach the clipboard (usage: /clip)', source: 'builtin', action: 'clip', scope: 'all' },
+  { trigger: '/sel', label: 'Selection', description: 'Re-read the selection from the previous app', source: 'builtin', action: 'sel', scope: 'all' },
   { trigger: '/cancel', label: 'Cancel task', description: 'Cancel a task (usage: /cancel <n>)', source: 'builtin', action: 'cancel', scope: 'all' },
   { trigger: '/clear-queue', label: 'Clear queue', description: 'Clear the waiting queue (asks first)', source: 'builtin', action: 'clear-queue', scope: 'all' },
 ];

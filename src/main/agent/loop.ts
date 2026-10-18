@@ -24,7 +24,8 @@ import {
   type RunMode,
 } from './mode-policy';
 import { ASK_SYSTEM_PROMPT } from './prompts/ask';
-import { describeWebState } from '../web/manager';
+import { getWebAvailability } from '../web/manager';
+import { availabilityState } from '../web/types';
 import { MAX_FETCHES_PER_RUN, MAX_SEARCHES_PER_RUN } from '../web/types';
 import type { Settings } from '../../shared/types';
 import {
@@ -90,10 +91,14 @@ export interface RunAgentOpts {
   };
   /** Ask once before the first subtask_create in this run (default true). */
   subtaskAskFirst?: boolean;
+  /** Attached context sources: the run starts as "having read" the first one. */
+  contextAttached?: string[];
   /** Web settings snapshot for availability + honest prompt state. Omit = tools filtered as not_configured. */
   webSettings?: Settings;
-  /** Secrets DB for reading the saved web key (main passes it; tests omit it). */
-  webDb?: unknown;
+  /** Model API key for native-search availability (main passes it; tests omit it). */
+  webApiKey?: string;
+  /** Ask-before-searching: Do mode forces an approval card per search. */
+  webAskBefore?: boolean;
 }
 
 export function webPromptBlock(webState: string): string {
@@ -101,13 +106,13 @@ export function webPromptBlock(webState: string): string {
     `Web search state: ${webState}.`,
     'Use web_search for anything current, unknown, or that needs sources. Use web_fetch to read a returned source.',
     'Answer language: detect it from the user\'s latest message alone — earlier turns, memory text and the UI locale never decide. Search queries may be in whatever language gives the best results.',
-    'If web search state is not available, say exactly why using the given state and tell the user to enable it in Settings > Web search. Never say you cannot access the internet unless the state says so.',
-    'Report tool failures using the exact reason given. Never invent search results or sources. Cite only sources the tools returned, with inline markers [1], [2] matching the Sources list.',
+    'If web search state is not available, say exactly why using the given state. "unavailable:disabled" means the user turned web search off (Settings > Web search). "needs_consent" means the user has not allowed that backend yet — say which one. Never say you cannot access the internet unless the state says unavailable. Never invent search results or sources. Cite only sources the tools returned, with inline markers [1], [2] matching the Sources list.',
+    'Report tool failures using the exact reason given. CONSENT_REQUIRED means the user must allow that backend first (name it). NEEDS_CONFIRM means the user wants to approve each search — stop and let them confirm.',
     'NO_RESULTS: try exactly one reformulated query (different wording or spelling variants), then answer with what you found or say nothing was found and show the queries you tried.',
   ].join('\n');
 }
 
-function buildSystemPrompt(cwd: string, roots: string[], now: string, extra?: string, webState = 'not_configured'): string {
+function buildSystemPrompt(cwd: string, roots: string[], now: string, extra?: string, webState = 'unavailable:disabled'): string {
   return [
     `You are Nexio, a careful, practical computer assistant. The user says what they want; you do it on their computer. Today is ${now}.`,
     `Working folder: ${cwd}`,
@@ -129,7 +134,7 @@ function buildSystemPrompt(cwd: string, roots: string[], now: string, extra?: st
   ].join('\n');
 }
 
-function buildAskSystemPrompt(cwd: string, roots: string[], now: string, extra?: string, webState = 'not_configured'): string {
+function buildAskSystemPrompt(cwd: string, roots: string[], now: string, extra?: string, webState = 'unavailable:disabled'): string {
   return [
     ASK_SYSTEM_PROMPT,
     `Today is ${now}.`,
@@ -195,6 +200,8 @@ export interface ToolExecState {
   /** Per-run web caps (never global). */
   webSearches?: number;
   webFetches?: number;
+  /** Ask-before-searching (Do mode forces an approval card per search). */
+  webAskBefore?: boolean;
 }
 
 export type ToolCallOutcome = 'ran' | 'denied' | 'blocked' | 'rejected' | 'timeout' | 'parked';
@@ -262,6 +269,7 @@ export async function executeToolCall(
   }
   let forceApproval = false;
   if ((tool.name === 'web_search' || tool.name === 'web_fetch') && st.lastUntrusted && st.mode !== 'ask') forceApproval = true;
+  if ((tool.name === 'web_search' || tool.name === 'web_fetch') && st.webAskBefore === true && st.mode !== 'ask') forceApproval = true;
   if (isMemoryWriteTool(tool.name)) {
     // Injection rule: untrusted content can never write memories silently.
     // A memory call following any file/web/attachment/MCP read needs the
@@ -472,9 +480,11 @@ export async function runAgent(userText: string, opts: RunAgentOpts): Promise<st
   const limits: AgentLimits = askMode
     ? { ...DEFAULT_LIMITS, ...(opts.limits || {}), ...ASK_LIMITS, maxOutputChars: DEFAULT_LIMITS.maxOutputChars }
     : { ...DEFAULT_LIMITS, ...(opts.limits || {}) };
-  // Web availability is structured data each run. Default when nothing is
-  // configured: web tools are NOT offered to the model.
-  const webState = opts.webSettings ? describeWebState(opts.webSettings, mode, opts.webDb as never) : 'not_configured';
+  // Web availability is structured data each run. Zero config: the resolver
+  // picks model-native then keyless hosted; tools are NOT offered unless available.
+  const webState = opts.webSettings
+    ? availabilityState(getWebAvailability(opts.webSettings, opts.provider, opts.model, opts.webApiKey || ''))
+    : 'unavailable:disabled';
   const webAvailable = webState === 'available';
   // Layer (a): the model only sees askSafe tools in Ask (plus explicit MCP opt-ins).
   const baseTools = opts.tools || ALL_TOOLS;
@@ -574,9 +584,12 @@ export async function runAgent(userText: string, opts: RunAgentOpts): Promise<st
     checkRunTimeout: () => Date.now() - start - st.approvalWaitMs > limits.runTimeoutMs,
     toolCalls: 0,
     approvalWaitMs: 0,
-    lastUntrusted: null,
+    // why: a write/destructive call following attached context shows
+    // "Requested after reading <source>" on the approval card.
+    lastUntrusted: opts.contextAttached?.[0] || null,
     webSearches: 0,
     webFetches: 0,
+    webAskBefore: opts.webAskBefore === true,
     mode,
     memoryCalls,
     subtaskAskFirst: opts.subtaskAskFirst,

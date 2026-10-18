@@ -4,6 +4,15 @@ import { IpcChannels } from '../shared/ipc-channels';
 import { resetDialogLock, shouldSuppressBlur } from './app/dialogs';
 import { attach as visAttach, show as visShow, hide as visHide, markResizing } from './app/window-visibility';
 import { platform } from './platform/index';
+import { recordExternalWindow, type ActiveWindow } from './app/external-window';
+import { clear as clearContextSnapshot } from './context/store';
+
+export type PopupShownHandler = (reason: string, external: ActiveWindow | null) => void;
+let shownHandler: PopupShownHandler | null = null;
+/** IPC layer registers context capture here (has db + sender). */
+export function onPopupShownForContext(cb: PopupShownHandler | null): void {
+  shownHandler = cb;
+}
 
 let win: BrowserWindow | null = null;
 
@@ -79,7 +88,14 @@ export function togglePopup(reason: 'hotkey' | 'tray' | 'second-instance' | 'tog
       return;
     }
     visHide(reason, { force: true });
+    try { clearContextSnapshot(); } catch { /* noop */ }
   } else {
+    // Show inactive first: the window appears with zero focus change, so the
+    // foreground query below still sees the app the user just left.
+    try {
+      (w as unknown as { showInactive?: () => void }).showInactive?.();
+    } catch { /* fall through to visShow */ }
+    const rec = recordExternalWindow();
     // Centered upper-third on the display nearest the cursor (multi-monitor safe).
     const cursor = screen.getCursorScreenPoint();
     const display = screen.getDisplayNearestPoint(cursor);
@@ -96,5 +112,10 @@ export function togglePopup(reason: 'hotkey' | 'tray' | 'second-instance' | 'tog
       if (platform().key === 'darwin') w.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
     } catch { /* older Electron */ }
     try { w.webContents.send(IpcChannels.popupShown); } catch { /* webcontents not ready */ }
+    void rec.then((external) => {
+      try {
+        shownHandler?.(reason, external);
+      } catch { /* context capture never breaks show */ }
+    });
   }
 }

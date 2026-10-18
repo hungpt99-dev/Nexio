@@ -25,3 +25,12 @@ Notes:
 - `Option+Space` is also claimed by other launchers/AI apps; if Nexio reports
   a conflict, pick another hotkey in Settings.
 - Typing respects IME composition (`isComposing`) identically on both OSes.
+
+## Slash commands for context
+
+Handled before the router, in Ask and Do:
+
+- `/context` — show what Nexio can see right now (all sources + states).
+- `/clip` — attach the clipboard (explains why when it can't).
+- `/sel` — re-read the selection from the previous app (explains how when
+  it is not available: select again and press the hotkey).

@@ -1,0 +1,69 @@
+.
+./big
+./big/blob-6mb.bin
+./docs
+./docs/.hidden-note.txt
+./docs/AI pháp luật.pdf
+./docs/app.log
+./docs/bao cao 2026.txt
+./docs/bom.txt
+./docs/config.json
+./docs/data.csv
+./docs/empty.txt
+./docs/english.pdf
+./docs/macro-doc.docm
+./docs/notes.txt
+./docs/readme.md
+./docs/report-draft.txt
+./docs/report-final-COPY.txt
+./docs/report-final.txt
+./docs/report.docx
+./docs/scanned.pdf
+./docs/slides.pptx
+./docs/table.xlsx
+./docs/utf16be.txt
+./docs/utf16le.txt
+./docs/win1252.txt
+./docs/ملاحظات.txt
+./docs/日本語ノート.txt
+./docs/😀 party 🎉.txt
+./downloads
+./downloads/.DS_Store
+./downloads/Cafe.txt
+./downloads/CafeNFD.txt
+./downloads/Thumbs.db
+./downloads/archive.part
+./downloads/report-final.txt
+./downloads/video.crdownload
+./downloads/~$locked.docx
+./images
+./images/photo.jpg
+./images/photo.png
+./images/red.jpg
+./images/red.png
+./locked
+./locked/encrypted.docx
+./locked/encrypted.pdf
+./project
+./project/2023-05-20 notes.txt
+./project/2024-01-15 notes.txt
+./project/2026-10-01 notes.txt
+./project/link-outside.txt
+./project/plan.md
+./tmp
+./tmp/cache.tmp
+./tmp/scratch.tmp
+./tmp/session.log
+./untrusted
+./untrusted/arabic.txt
+./untrusted/bomb.zip
+./untrusted/chinese.txt
+./untrusted/cookies.txt
+./untrusted/evil-renamed.docx
+./untrusted/fake-keys.txt
+./untrusted/ghi-chu-vi.txt
+./untrusted/id_rsa_fixture
+./untrusted/nota-es.txt
+./untrusted/note-en.txt
+./untrusted/note-fr.txt
+./untrusted/zipslip.zip

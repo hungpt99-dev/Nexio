@@ -2,23 +2,19 @@
 
 ## Unreleased
 
-- Web search that is honest about what it can do: `src/main/web/` adds a
-  real, configurable search layer (Brave Search hosted API + self-hosted
-  SearXNG, one folder + registry line per provider) behind Settings > Web
-  search (provider picker, secrets-stored key, Test button with exact
-  errors, region/language hints, max results, Ask-mode toggle, privacy
-  line). Off by default the tools are hidden and every run carries a
-  structured `webSearch` state (`available | not_configured |
-  disabled_in_mode | error:<code>`), so the model says exactly why it
-  cannot search and how to enable it instead of a vague reply. Typed
-  errors (NOT_CONFIGURED … DISABLED) with [Open Settings]/[Retry] actions,
-  one NO_RESULTS reformulation, step rows with the exact query, Sources
-  rows with `[1]` citations, a `Used web search` chip, `/search` in Ask
-  and Do, SSRF/privacy guards, and answers in the language of the latest
-  message. Root cause of the reported bug: `web_search` was always offered
-  but only env-configured (`NEXIO_SEARCH_URL`), so every call failed with a
-  vague string the model turned into "I cannot search". See
-  `docs/web-search.md`.
+- Context awareness: pressing the hotkey captures a one-shot, in-memory
+  `ContextSnapshot` (selected text, selected files, open folder, clipboard,
+  app, browser page) that feeds the router and the agent, so "summarize
+  this" / "move these to Invoices" work without explaining. Chips under the
+  input show exactly what is attached; nothing is sent until Enter.
+  `src/main/context/` collectors behind new `PlatformAdapter` methods
+  (PowerShell/UIA/Shell-COM, osascript/AX/JXA), 60 s expiry, per-source
+  states, one-tap choice on ambiguity, `/context /clip /sel`,
+  `context_get`/`context_status`, task copies at creation. Password fields,
+  password managers, deny-listed apps and concealed clipboards are never
+  read. See `docs/context-awareness.md` and ADR-0009.
+
+- Zero-config web search with an automatic, honest fallback order: a single resolver tries model-native search (Anthropic `web_search` server tool, Gemini `google_search` grounding — verified against current docs, per-model `supportsNativeSearch` capability defaulting false; OpenAI/Compatible unsupported by design), then keyless hosted DuckDuckGo, then honest `unavailable`. Session-cached per provider+model, re-evaluated on errors; one fallthrough per query and only to a consented backend; step rows name the backend ("Searched the web via <name>"). Consent lives in onboarding (one line, [Allow]/[Not now]) and an inline notice at first need naming the backend with its privacy policy. Settings > Web search keeps only: Allow web search, Ask before searching, Save search queries, backend status + Test. No keys, no provider lists. See `docs/web-search.md`.
 
 - Popup visibility is owned by one module with reasons and grace periods:
   blur hides only with the pointer truly outside (150ms recheck, halo,
