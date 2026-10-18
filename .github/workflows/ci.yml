@@ -37,6 +37,9 @@ jobs:
       - run: npm run build
       - run: npm run check:no-fakes
       - name: Gitleaks scan
+        # once per run is enough (same content on every runner); macOS-only
+        # also sidesteps the action's broken windows_x64 asset download.
+        if: matrix.os == 'macos-latest'
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
