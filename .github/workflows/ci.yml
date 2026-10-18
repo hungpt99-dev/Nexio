@@ -17,6 +17,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          # full history: gitleaks scans the PR diff range, which a
+          # depth-1 checkout cannot resolve (shallow boundary error).
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -52,6 +56,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          # full history: gitleaks scans the PR diff range, which a
+          # depth-1 checkout cannot resolve (shallow boundary error).
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22

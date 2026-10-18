@@ -113,7 +113,10 @@ const snap = () => ev(`(async () => JSON.stringify({
     await sleep(3000);
     await connect();
     await ev(`(() => { document.getElementById('input').focus(); try { selectMode('agent'); } catch {} return 1; })()`);
-    await send('Input.insertText', { text: 'hello' });
+    // why: path-like text routes to act structurally (no decision engine in
+    // CI), so the smoke drives a real Do loop; the fake answers with no tool
+    // calls and the canned final text.
+    await send('Input.insertText', { text: 'hello ./notes.txt' });
     await sleep(300);
     await send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
     await sleep(150);
