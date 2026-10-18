@@ -284,6 +284,11 @@ describe('unknown stored provider ids are not configured, never substituted', ()
   it('missing key yields the setup message with Open Settings, no answer, no spinner', async () => {
     const conv = createConversation(db(), 't-nokey').id;
     db().prepare("DELETE FROM secrets WHERE service = 'apikey:openai'").run();
+    // why: the handler falls back to OPENAI_API_KEY when set — a real dev
+    // key in the shell would top up the deleted secret and sail past the
+    // missing-key path this test pins down. Scrub it for this test only.
+    const savedEnv = process.env.OPENAI_API_KEY;
+    delete process.env.OPENAI_API_KEY;
     try {
       resetFetch();
       // no stored key and no helper top-up: the run must fail before any fetch
@@ -292,6 +297,7 @@ describe('unknown stored provider ids are not configured, never substituted', ()
       expect(String((out as any).message)).toMatch(/No API key is set/);
       expect(bodies).toHaveLength(0);
     } finally {
+      if (savedEnv !== undefined) process.env.OPENAI_API_KEY = savedEnv;
       setSecret(db(), apiKeyService('openai'), 'k');
     }
   });

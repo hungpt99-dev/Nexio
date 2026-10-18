@@ -15,7 +15,7 @@ import {
   normalizeMemoryText,
   type Memory,
 } from './types';
-import { graphemeLength, takeGraphemes } from '../../shared/text';
+import { graphemeLength, takeGraphemes, words } from '../../shared/text';
 
 /** Single access layer for long-term memory. No other module touches these tables. */
 
@@ -236,22 +236,38 @@ export function isMemoryKind(k: unknown): k is MemoryKind {
   return k === 'preference' || k === 'fact' || k === 'folder_rule' || k === 'procedure' || k === 'episode';
 }
 
+/** Slot keywords that mark a name statement in any script (shared core of
+ * a name-slot change like "my name is X" vs "your name is Y"). */
+const NAME_KEYS = new Set([
+  'name', 'names', 'tên', '名', '名字', '姓名', '名前', '이름', '성함',
+  'nombre', 'nombres', 'nom', 'nome', 'имя',
+]);
+
 /** Two distinct short records that share a content core but fill the slot
  * differently ("Ann" vs "Bob", "my name is X" vs "your name is Y", in any
  * script) always conflict. Language-agnostic: no name-order or
- * English-word assumptions; stores text exactly as written. */
+ * English-word assumptions; stores text exactly as written.
+ * Overlap counts full words (template words like my/your/is matter);
+ * stopword-stripped content tokens would reduce a name template to a
+ * single shared word and miss the clash. */
 export function nameClash(a: string, b: string): boolean {
-  const ta = memoryTokens(a);
-  const tb = memoryTokens(b);
-  if (!ta.size || !tb.size) return false;
-  if (ta.size > 6 || tb.size > 6) return false;
+  const sa = new Set(words(normalizeMemoryText(a)));
+  const sb = new Set(words(normalizeMemoryText(b)));
+  if (!sa.size || !sb.size) return false;
+  if (sa.size > 6 || sb.size > 6) return false;
   let inter = 0;
-  for (const w of ta) if (tb.has(w)) inter++;
-  if (inter < 2) return false;
+  for (const w of sa) if (sb.has(w)) inter++;
   if (normalizeMemoryText(a) === normalizeMemoryText(b)) return false;
-  // Same short template, both sides carry their own slot value (size differs
-  // by at most the template words, e.g. my/your or a multi-token name).
-  return (ta.size - inter) >= 1 && (tb.size - inter) >= 1 && Math.abs(ta.size - tb.size) <= 1;
+  // why: both sides must carry their own slot value (a pure elaboration
+  // with nothing private on one side is an update, not a clash).
+  if ((sa.size - inter) < 1 || (sb.size - inter) < 1) return false;
+  // Same short template, different slot (size differs by at most one word).
+  if (inter >= 3 && Math.abs(sa.size - sb.size) <= 1) return true;
+  // Name-slot switch with a shorter shared core ("my name is X" vs
+  // "your name is Y" share only name+is): the shared core must include
+  // a name keyword, so distinct multi-slot facts never match this rule.
+  if (inter >= 2 && [...sa].some((w) => sb.has(w) && NAME_KEYS.has(w))) return true;
+  return false;
 }
 
 /**
