@@ -68,10 +68,18 @@ const send = (method, params = {}) => new Promise((resolve, reject) => {
   pending.set(myId, (m) => { clearTimeout(to); resolve(m); });
   ws.send(JSON.stringify({ id: myId, method, params }));
 });
-const ev = async (expr) => {
-  const r = await send('Runtime.evaluate', { expression: expr, returnByValue: true, awaitPromise: true });
-  if (r.result?.exceptionDetails) throw new Error('eval: ' + JSON.stringify(r.result.exceptionDetails).slice(0, 300));
-  return r.result.result.value;
+const ev = async (expr, retries = 5) => {
+  // why: CDP can answer {id, error} transiently after reload/navigation
+  // (destroyed execution context) — retry instead of failing the smoke.
+  for (let i = 0; ; i++) {
+    const r = await send('Runtime.evaluate', { expression: expr, returnByValue: true, awaitPromise: true });
+    if (r.result) {
+      if (r.result.exceptionDetails) throw new Error('eval: ' + JSON.stringify(r.result.exceptionDetails).slice(0, 300));
+      return r.result.result.value;
+    }
+    if (i >= retries) throw new Error('eval no result after retries: ' + JSON.stringify(r).slice(0, 200));
+    await sleep(500);
+  }
 };
 const snap = () => ev(`(async () => JSON.stringify({
   assistant: [...document.querySelectorAll('#messages .msg.assistant')].map((m) => m.textContent || ''),
@@ -125,7 +133,12 @@ const snap = () => ev(`(async () => JSON.stringify({
     let last = '';
     for (;;) {
       await sleep(2000);
-      last = await snap();
+      try {
+        last = await snap();
+      } catch (e) {
+        if (Date.now() > deadline) throw new Error('no answer within 30s (stuck run): ' + e.message);
+        continue; // transient CDP error — keep polling until the deadline
+      }
       const s = JSON.parse(last);
       const answered = s.assistant.some((t) => t.includes('hello to you too'));
       if (answered && s.terminal && !s.stopVisible) {
