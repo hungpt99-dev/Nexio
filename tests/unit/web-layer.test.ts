@@ -206,10 +206,10 @@ describe('availability states + honest messages', () => {
     expect(r.output).toContain('Searched the web via DuckDuckGo: scion anthropic git');
   });
   it('no key fields or key code paths: hosted works with empty key', async () => {
+    // why: canned fetch — this must not depend on live DuckDuckGo.
     const fetchFn = (async () => new Response(DDG_HTML, { status: 200, headers: { 'Content-Type': 'text/html' } })) as unknown as typeof fetch;
-    const r = await runSearch(S({ webConsent: { 'hosted:duckduckgo': true } }), DEPS({ apiKey: '' }), 'q', {}, { searches: 0, fetches: 0 });
+    const r = await runSearch(S({ webConsent: { 'hosted:duckduckgo': true } }), DEPS({ apiKey: '', fetchFn }), 'q', {}, { searches: 0, fetches: 0 });
     expect(r.backend).toBe('DuckDuckGo');
-    void fetchFn;
   });
 });
 
